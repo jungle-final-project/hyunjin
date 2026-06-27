@@ -1,28 +1,28 @@
-# Role Workspaces
+# 역할별 작업 공간
 
-| Owner | Workspace | Primary Responsibility |
+| 담당 | 작업 공간 | 주요 책임 |
 | --- | --- | --- |
-| 1 | `apps/web/src/features/quote`, `apps/web/src/features/auth` | Consumer quote flow, recommendation UI, auth screens |
-| 2 | `apps/api/src/main/java/com/buildgraph/prototype/part`, `apps/api/src/main/java/com/buildgraph/prototype/price`, `apps/web/src/features/parts` | Parts DB, validation tools, rule-based performance, target-price alerts |
-| 3 | `apps/api/src/main/java/com/buildgraph/prototype/agent`, `apps/api/src/main/java/com/buildgraph/prototype/rag` | LLM/RAG/Agent orchestration skeleton and fallback policies |
-| 4 | `apps/pc-agent`, `apps/api/src/main/java/com/buildgraph/prototype/log`, `apps/api/src/main/java/com/buildgraph/prototype/ticket`, `apps/web/src/features/support` | PC Agent, log upload, AS tickets |
-| 5 | `infra`, `apps/api/src/main/java/com/buildgraph/prototype/user`, `apps/api/src/main/java/com/buildgraph/prototype/admin`, `apps/web/src/features/admin` | Auth, admin, Docker, queue/cache, load-test environment |
+| 1 | `apps/web/src/features/quote`, `apps/web/src/features/auth` | 소비자 견적 흐름, 추천 UI, 로그인/회원가입 화면 |
+| 2 | `apps/api/src/main/java/com/buildgraph/prototype/part`, `apps/api/src/main/java/com/buildgraph/prototype/price`, `apps/web/src/features/parts` | 부품 DB, 검증 도구, 규칙 기반 성능 예측, 목표가 알림 |
+| 3 | `apps/api/src/main/java/com/buildgraph/prototype/agent`, `apps/api/src/main/java/com/buildgraph/prototype/rag` | LLM/RAG/에이전트 오케스트레이션 골격과 대체 응답 정책 |
+| 4 | `apps/pc-agent`, `apps/api/src/main/java/com/buildgraph/prototype/log`, `apps/api/src/main/java/com/buildgraph/prototype/ticket`, `apps/web/src/features/support` | PC 에이전트, 로그 업로드, AS 티켓 |
+| 5 | `infra`, `apps/api/src/main/java/com/buildgraph/prototype/user`, `apps/api/src/main/java/com/buildgraph/prototype/admin`, `apps/web/src/features/admin` | 인증, 관리자, Docker, 대기열/cache, 부하 테스트 환경 |
 
-## First PR Checklist
+## 첫 PR 체크리스트
 
-| Owner | First PR target | Done when |
+| 담당 | 첫 PR 목표 | 완료 기준 |
 | --- | --- | --- |
-| 1 | Replace quote/auth mock screen data with API calls and local form state | Requirement parse, build recommend, login/signup flows can be tested from the UI |
-| 2 | Create part/price DTO and service skeletons behind the existing controllers | `/api/parts`, `/api/tools/{tool}/check`, `/api/price-alerts`, `/api/price-snapshots/collect` no longer depend on shared `MockData` |
-| 3 | Implement Agent session state model and RAG evidence boundary | `/api/agent/sessions`, `/api/agent/sessions/{id}/run`, `/api/rag/search`, admin Agent detail show state timeline and evidence |
-| 4 | Connect PC Agent JSONL export to upload and AS ticket creation | AS request creates AgentLogUpload and AsTicket records with consent, 30-minute range, and admin-only cause candidates |
-| 5 | Add auth guard, admin guard, PR CI, and infra smoke scripts | User/admin routes distinguish roles, GitHub Actions protects build/test basics, Docker services stay reproducible, and k6 script skeleton exists |
+| 1 | 견적/인증 모의 화면 데이터를 API 호출과 로컬 폼 상태로 교체 | 요구사항 파싱, 빌드 추천, 로그인/회원가입 흐름을 UI에서 테스트할 수 있음 |
+| 2 | 기존 controller 뒤에 부품/가격 DTO와 service 골격 생성 | `/api/parts`, `/api/tools/{tool}/check`, `/api/price-alerts`, `/api/price-snapshots/collect`가 공유 `MockData`에 의존하지 않음 |
+| 3 | 에이전트 세션 상태 모델과 RAG 근거 경계 구현 | `/api/agent/sessions`, `/api/agent/sessions/{id}/run`, `/api/rag/search`, 관리자 에이전트 상세 화면에서 상태 타임라인과 근거를 볼 수 있음 |
+| 4 | PC 에이전트 JSONL export를 업로드 및 AS 티켓 생성 흐름에 연결 | AS 요청이 동의 여부, 최근 30분 구간, 관리자 전용 원인 후보와 함께 AgentLogUpload 및 AsTicket 기록을 생성함 |
+| 5 | 인증 보호 로직, 관리자 보호 로직, PR CI, 인프라 기본 검증 스크립트 추가 | 사용자/관리자 라우트가 role을 구분하고, GitHub Actions가 build/test 기본 오류를 막으며, Docker 서비스가 재현 가능하고 k6 스크립트 골격이 존재함 |
 
-## Seed Ownership
+## 시드 소유권
 
-Seed/mock data follows the same module boundary as the final plan. `common/MockData.java` is only a small utility for `map()` and `now()`.
+시드/모의 데이터는 최종 기획안의 모듈 경계를 따릅니다. `common/MockData.java`는 `map()`과 `now()`만 제공하는 작은 유틸리티로 유지합니다.
 
-| Module | Seed file | Owner |
+| 모듈 | 시드 파일 | 담당 |
 | --- | --- | --- |
 | build | `apps/api/src/main/java/com/buildgraph/prototype/build/BuildSeed.java` | 1 |
 | part/tool | `apps/api/src/main/java/com/buildgraph/prototype/part/PartSeed.java`, `ToolSeed.java` | 2 |
@@ -34,35 +34,35 @@ Seed/mock data follows the same module boundary as the final plan. `common/MockD
 | user | `apps/api/src/main/java/com/buildgraph/prototype/user/UserSeed.java` | 5 |
 | admin | `apps/api/src/main/java/com/buildgraph/prototype/admin/AdminSeed.java` | 5 |
 
-## Frontend Ownership
+## 프론트엔드 소유권
 
-Frontend files are split by implementation owner so feature work does not pile into one large page file.
+프론트엔드 파일은 기능 작업이 하나의 큰 페이지 파일에 몰리지 않도록 구현 담당자 기준으로 나누었습니다.
 
-| Owner | Frontend area | Notes |
+| 담당 | 프론트엔드 영역 | 비고 |
 | --- | --- | --- |
-| 1 | `apps/web/src/features/quote/pages`, `apps/web/src/features/quote/components`, `apps/web/src/features/quote/quoteApi.ts`, `apps/web/src/features/auth` | Requirement input, build result, part-change flow, quote history, auth UI |
-| 2 | `apps/web/src/features/parts/pages`, `apps/web/src/features/parts/mocks`, `apps/web/src/features/parts/partsApi.ts` | Self quote, parts table, tool checks, price-alert API boundary |
-| 3 | `apps/web/src/features/admin/pages/AgentSessionAdminPage.tsx`, `ToolInvocationAdminPage.tsx`, `RagEvidenceAdminPage.tsx`, `apps/web/src/features/admin/mocks/adminMock.ts` | Agent/RAG/Tool evidence review screens |
-| 4 | `apps/web/src/features/support`, `apps/web/src/features/support/supportApi.ts` | AS request, ticket detail, log upload policy |
-| 5 | `apps/web/src/components/layout`, `apps/web/src/components/display`, `apps/web/src/components/feedback`, `apps/web/src/features/admin/pages/AdminDashboardPage.tsx` | Shared shell, common UI, admin dashboard |
+| 1 | `apps/web/src/features/quote/pages`, `apps/web/src/features/quote/components`, `apps/web/src/features/quote/quoteApi.ts`, `apps/web/src/features/auth` | 요구사항 입력, 빌드 결과, 부품 변경 흐름, 견적 이력, 인증 UI |
+| 2 | `apps/web/src/features/parts/pages`, `apps/web/src/features/parts/mocks`, `apps/web/src/features/parts/partsApi.ts` | 셀프 견적, 부품 표, 도구 검사, 목표가 알림 API 경계 |
+| 3 | `apps/web/src/features/admin/pages/AgentSessionAdminPage.tsx`, `ToolInvocationAdminPage.tsx`, `RagEvidenceAdminPage.tsx`, `apps/web/src/features/admin/mocks/adminMock.ts` | 에이전트/RAG/도구 근거 검토 화면 |
+| 4 | `apps/web/src/features/support`, `apps/web/src/features/support/supportApi.ts` | AS 접수, 티켓 상세, 로그 업로드 정책 |
+| 5 | `apps/web/src/components/layout`, `apps/web/src/components/display`, `apps/web/src/components/feedback`, `apps/web/src/features/admin/pages/AdminDashboardPage.tsx` | 공통 shell, 공통 UI, 관리자 대시보드 |
 
-## CI Ownership
+## CI 소유권
 
-The repository includes a minimal GitHub Actions workflow at `.github/workflows/ci.yml`.
+저장소에는 최소 GitHub Actions 워크플로인 `.github/workflows/ci.yml`이 포함되어 있습니다.
 
-| Check | Owner | Purpose |
+| 검사 | 담당 | 목적 |
 | --- | --- | --- |
-| `npm ci`, `npm run build`, `npm run test` in `apps/web` | 5 maintains, all owners keep passing | Catch broken routes, TypeScript errors, and frontend build failures |
-| `./gradlew bootJar --no-daemon` in `apps/api` with Java 21 | 5 maintains, backend owners keep passing | Catch backend compile and packaging failures |
-| `docker compose config` | 5 | Catch invalid compose changes before merge |
+| `apps/web`에서 `npm ci`, `npm run build`, `npm run test` | 5번이 유지보수하고 모든 담당자가 통과 상태를 유지 | 라우트 오류, TypeScript 오류, 프론트엔드 빌드 실패 탐지 |
+| Java 21 환경의 `apps/api`에서 `./gradlew bootJar --no-daemon` | 5번이 유지보수하고 백엔드 담당자가 통과 상태를 유지 | 백엔드 컴파일 및 패키징 실패 탐지 |
+| `docker compose config` | 5 | 병합 전 잘못된 compose 변경 탐지 |
 
-CI intentionally does not deploy, enforce branch protection, or run full load tests. Those remain 5번 담당자의 later infra decisions.
+CI는 의도적으로 배포, 브랜치 보호 설정, 전체 부하 테스트를 수행하지 않습니다. 이 항목은 이후 5번 담당자의 인프라 결정 범위로 남깁니다.
 
-## Shared Contract Rules
+## 공통 계약 규칙
 
-- Do not change an existing API response shape without updating `docs/openapi.yaml` in the same PR.
-- If a feature needs seed data, add it inside the owning module seed file; do not add domain data to `common/MockData.java`.
-- If a frontend feature needs mock data, place it under the owning feature `mocks` directory; keep `src/data/prototypeData.ts` as a compatibility barrel only.
-- Add feature API calls in the owning `*Api.ts` file instead of calling `api()` directly from page components.
-- Admin detail screens are implementation targets, not final UX. Keep them explicit about state, owner, API, and evidence fields.
-- Keep MVP exclusions intact: no payment, shipping, custom remote control, exact FPS guarantee, or lowest-price guarantee.
+- 기존 API 응답 구조를 변경할 때는 같은 PR에서 `docs/openapi.yaml`을 함께 수정합니다.
+- 기능에 시드 데이터가 필요하면 담당 모듈 시드 파일에 추가합니다. 도메인 데이터를 `common/MockData.java`에 넣지 않습니다.
+- 프론트엔드 기능에 모의 데이터가 필요하면 담당 기능의 `mocks` 디렉터리에 둡니다. `src/data/prototypeData.ts`는 호환용 모음 파일로만 유지합니다.
+- 기능 API 호출은 페이지 컴포넌트에서 `api()`를 직접 호출하지 말고 담당 `*Api.ts` 파일에 추가합니다.
+- 관리자 상세 화면은 최종 UX가 아니라 구현 목표 화면입니다. 상태, 담당자, API, 근거 필드를 명확하게 유지합니다.
+- MVP 제외 범위를 유지합니다. 결제, 배송, 자체 원격제어, 정확한 FPS 보장, 최저가 보장은 구현하지 않습니다.

@@ -1,17 +1,17 @@
-# Prototype Architecture
+# 프로토타입 아키텍처
 
-The prototype is a modular monolith plus a Vite web app. Frontend routes call the Spring Boot API through `/api/*`. The backend is wired to PostgreSQL, Redis, RabbitMQ, and Mailpit, but AI/RAG/tool/price integrations return deterministic seed-backed responses.
+이 프로토타입은 모듈형 모놀리식 Spring Boot API와 Vite 기반 웹 앱으로 구성됩니다. 프론트엔드 라우트는 `/api/*` 경로를 통해 Spring Boot API를 호출합니다. 백엔드는 PostgreSQL, Redis, RabbitMQ, Mailpit에 연결되어 있지만 AI/RAG/도구/가격 연동은 외부 서비스 없이 시드 기반 결정 응답을 반환합니다.
 
-## Runtime Flow
+## 런타임 흐름
 
-1. User enters requirements in the web app.
-2. API parses requirements through mock LLM service.
-3. API returns seed Build recommendations and tool evidence.
-4. User can save quotes, request part-change comparison, register target-price alerts, or create AS tickets.
-5. Admin screens inspect agent sessions, tool invocations, price jobs, and tickets.
+1. 사용자가 웹 앱에서 PC 사용 목적과 예산을 입력합니다.
+2. API가 모의 LLM 서비스를 통해 요구사항을 파싱합니다.
+3. API가 시드 기반 빌드 추천과 도구 근거를 반환합니다.
+4. 사용자는 견적 저장, 부품 변경 비교, 목표가 알림 등록, AS 티켓 생성을 진행할 수 있습니다.
+5. 관리자는 에이전트 세션, 도구 호출, 가격 작업, AS 티켓을 운영 화면에서 확인합니다.
 
-## Constraints
+## 제약 조건
 
-- Desktop-only first viewport.
-- No real payment, shipping, custom remote control, exact FPS guarantee, or lowest-price guarantee.
-- PC Agent is a local Python CLI skeleton that generates JSONL samples for AS upload tests.
+- 첫 화면 기준은 데스크톱 전용입니다.
+- 실제 결제, 배송, 자체 원격제어, 정확한 FPS 보장, 최저가 보장은 구현하지 않습니다.
+- PC 에이전트는 AS 업로드 테스트용 JSONL 샘플을 생성하는 로컬 Python CLI 골격입니다.

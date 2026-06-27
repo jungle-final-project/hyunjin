@@ -1,19 +1,19 @@
 openapi: 3.0.3
 info:
-  title: BuildGraph AI Prototype API
+  title: BuildGraph AI 프로토타입 API
   version: 0.1.0
 servers:
   - url: http://localhost:8080
 paths:
   /api/health:
     get:
-      summary: API health
+      summary: API 상태 확인
       responses:
         "200":
-          description: OK
+          description: 정상 응답
   /api/auth/login:
     post:
-      summary: Email login
+      summary: 이메일 로그인
       requestBody:
         required: true
         content:
@@ -22,14 +22,14 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: JWT token and user
+          description: JWT 토큰과 사용자 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
   /api/users:
     post:
-      summary: Sign up user
+      summary: 회원가입
       requestBody:
         required: true
         content:
@@ -38,18 +38,18 @@ paths:
               $ref: "#/components/schemas/SignupRequest"
       responses:
         "201":
-          description: Created user
+          description: 생성된 사용자
   /api/auth/me:
     get:
-      summary: Current user
+      summary: 현재 사용자 조회
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Current user
+          description: 현재 사용자 정보
   /api/requirements/parse:
     post:
-      summary: Parse natural language requirements
+      summary: 자연어 요구사항 파싱
       requestBody:
         required: true
         content:
@@ -58,16 +58,16 @@ paths:
               $ref: "#/components/schemas/RequirementParseRequest"
       responses:
         "200":
-          description: Parsed requirement
+          description: 파싱된 요구사항
   /api/builds/recommend:
     post:
-      summary: Recommend seed builds
+      summary: 시드 기반 빌드 추천
       responses:
         "200":
-          description: Build recommendations
+          description: 빌드 추천 결과
   /api/builds/{id}:
     get:
-      summary: Build detail
+      summary: 빌드 상세 조회
       parameters:
         - in: path
           name: id
@@ -76,16 +76,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Build detail
+          description: 빌드 상세 정보
   /api/builds/history:
     get:
-      summary: Saved build history
+      summary: 저장된 빌드 이력
       responses:
         "200":
-          description: History
+          description: 이력
   /api/builds/{id}/change-part:
     post:
-      summary: Compare and apply part change
+      summary: 부품 변경 비교 및 적용
       parameters:
         - in: path
           name: id
@@ -94,16 +94,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Change diff
+          description: 변경 차이
   /api/parts:
     get:
-      summary: Part list
+      summary: 부품 목록
       responses:
         "200":
-          description: Parts
+          description: 부품
   /api/parts/{id}:
     get:
-      summary: Part detail
+      summary: 부품 상세 조회
       parameters:
         - in: path
           name: id
@@ -112,10 +112,10 @@ paths:
             type: string
       responses:
         "200":
-          description: Part
+          description: 부품
   /api/tools/{tool}/check:
     post:
-      summary: Run validation tool
+      summary: 검증 도구 실행
       parameters:
         - in: path
           name: tool
@@ -125,24 +125,24 @@ paths:
             enum: [compatibility, power, size, performance, price]
       responses:
         "200":
-          description: Tool result
+          description: 도구 결과
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolResult"
   /api/agent/sessions:
     post:
-      summary: Create limited Agent session
+      summary: 제한된 에이전트 세션 생성
       responses:
         "200":
-          description: Created Agent session placeholder
+          description: 생성된 에이전트 세션 임시 응답
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSession"
   /api/agent/sessions/{id}/run:
     post:
-      summary: Run limited Agent orchestration
+      summary: 제한된 에이전트 오케스트레이션 실행
       parameters:
         - in: path
           name: id
@@ -151,14 +151,14 @@ paths:
             type: string
       responses:
         "200":
-          description: Agent run result with state timeline and tool invocations
+          description: 상태 타임라인과 도구 호출을 포함한 에이전트 실행 결과
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSession"
   /api/agent/sessions/{id}:
     get:
-      summary: Agent session detail
+      summary: 에이전트 세션 상세 조회
       parameters:
         - in: path
           name: id
@@ -167,14 +167,14 @@ paths:
             type: string
       responses:
         "200":
-          description: Agent session detail
+          description: 에이전트 세션 상세 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSession"
   /api/rag/search:
     get:
-      summary: Search RAG evidence candidates
+      summary: RAG 근거 후보 검색
       parameters:
         - in: query
           name: query
@@ -183,10 +183,10 @@ paths:
             type: string
       responses:
         "200":
-          description: RAG evidence candidates
+          description: RAG 근거 후보
   /api/rag/evidence/{id}:
     get:
-      summary: RAG evidence detail
+      summary: RAG 근거 상세 조회
       parameters:
         - in: path
           name: id
@@ -195,37 +195,37 @@ paths:
             type: string
       responses:
         "200":
-          description: RAG evidence detail
+          description: RAG 근거 상세 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RagEvidence"
   /api/price-alerts:
     get:
-      summary: Price alerts
+      summary: 가격 알림 목록
       responses:
         "200":
-          description: Alerts
+          description: 알림
     post:
-      summary: Register target price alert
+      summary: 목표가 알림 등록
       responses:
         "201":
-          description: Created alert
+          description: 생성된 알림
   /api/price-snapshots/collect:
     post:
-      summary: Queue price snapshot collection
+      summary: 가격 스냅샷 수집 대기열 등록
       responses:
         "202":
-          description: Price collection job queued
+          description: 가격 수집 작업 대기열 등록 완료
   /api/agent-logs/upload:
     post:
-      summary: Upload recent agent log
+      summary: 최근 에이전트 로그 업로드
       responses:
         "201":
-          description: Uploaded log metadata
+          description: 업로드된 로그 메타데이터
   /api/agent-logs/{id}:
     get:
-      summary: Agent log detail
+      summary: 에이전트 로그 상세 조회
       parameters:
         - in: path
           name: id
@@ -234,16 +234,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Log summary
+          description: 로그 요약
   /api/as-tickets:
     post:
-      summary: Create AS ticket
+      summary: AS 티켓 생성
       responses:
         "201":
-          description: Created ticket
+          description: 생성된 티켓
   /api/as-tickets/{id}:
     get:
-      summary: AS ticket detail
+      summary: AS 티켓 상세 조회
       parameters:
         - in: path
           name: id
@@ -252,16 +252,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Ticket
+          description: 티켓
   /api/admin/dashboard:
     get:
-      summary: Admin dashboard
+      summary: 관리자 대시보드
       responses:
         "200":
-          description: Dashboard
+          description: 대시보드
   /api/admin/agent-sessions/{id}:
     get:
-      summary: Agent session detail
+      summary: 에이전트 세션 상세 조회
       parameters:
         - in: path
           name: id
@@ -270,16 +270,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Agent session
+          description: 에이전트 세션
   /api/admin/tool-invocations:
     get:
-      summary: Tool invocation list
+      summary: 도구 호출 목록
       responses:
         "200":
-          description: Tool invocations
+          description: 도구 호출
   /api/admin/tool-invocations/{id}:
     get:
-      summary: Tool invocation detail
+      summary: 도구 호출 상세 조회
       parameters:
         - in: path
           name: id
@@ -288,14 +288,14 @@ paths:
             type: string
       responses:
         "200":
-          description: Tool invocation detail
+          description: 도구 호출 상세 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolInvocation"
   /api/admin/rag-evidence/{id}:
     get:
-      summary: Admin RAG evidence detail
+      summary: 관리자 RAG 근거 상세 조회
       parameters:
         - in: path
           name: id
@@ -304,20 +304,20 @@ paths:
             type: string
       responses:
         "200":
-          description: RAG evidence detail for admin review
+          description: 관리자 검토용 RAG 근거 상세 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RagEvidence"
   /api/admin/as-tickets:
     get:
-      summary: Admin AS tickets
+      summary: 관리자 AS 티켓 목록
       responses:
         "200":
-          description: Tickets
+          description: 티켓
   /api/admin/as-tickets/{id}:
     get:
-      summary: Admin AS ticket detail
+      summary: 관리자 AS 티켓 상세 조회
       parameters:
         - in: path
           name: id
@@ -326,23 +326,23 @@ paths:
             type: string
       responses:
         "200":
-          description: Admin ticket detail with log policy and cause candidates
+          description: 로그 정책과 원인 후보를 포함한 관리자 티켓 상세 정보
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminAsTicket"
   /api/admin/price-jobs:
     get:
-      summary: Price job list
+      summary: 가격 작업 목록
       responses:
         "200":
-          description: Jobs
+          description: 작업
   /api/admin/price-jobs/run:
     post:
-      summary: Run price collection job
+      summary: 가격 수집 작업 실행
       responses:
         "202":
-          description: Job queued
+          description: 작업 대기열 등록 완료
 components:
   securitySchemes:
     bearerAuth:
