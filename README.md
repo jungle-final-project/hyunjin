@@ -23,6 +23,8 @@
 
 ## 빠른 실행
 
+Docker Desktop이 켜져 있으면 아래 명령만으로 웹, API, DB, Redis, RabbitMQ, Mailpit을 함께 실행할 수 있습니다.
+
 ```powershell
 git clone https://github.com/jungle-final-project/prototype.git
 cd prototype
@@ -37,6 +39,37 @@ docker compose up --build
 | API health | http://localhost:8080/api/health |
 | RabbitMQ 관리 화면 | http://localhost:15672 |
 | Mailpit | http://localhost:8025 |
+
+중지와 초기화:
+
+```powershell
+docker compose down
+docker compose down -v
+```
+
+`docker compose down -v`는 PostgreSQL volume까지 삭제하므로 seed 상태로 다시 시작할 때만 사용합니다.
+
+## VS Code 컨테이너로 열기
+
+로컬 Node/Java/Python 버전을 맞추기 어렵다면 VS Code Dev Containers로 작업합니다.
+
+준비:
+
+- Docker Desktop 실행
+- VS Code 확장 `Dev Containers` 설치
+
+실행:
+
+1. VS Code에서 이 저장소 폴더를 엽니다.
+2. `Ctrl + Shift + P`를 누릅니다.
+3. `Dev Containers: Reopen in Container`를 실행합니다.
+4. 컨테이너가 열린 뒤 필요한 서비스는 터미널에서 실행합니다.
+
+```powershell
+docker compose up --build
+```
+
+`.devcontainer/devcontainer.json`은 Node 22, Java 21, Python 3.12, Docker CLI를 포함합니다.
 
 ## 개발 명령어
 
