@@ -23,14 +23,8 @@ public class AgentQueryService {
         this.ragQueryService = ragQueryService;
     }
 
-    public Map<String, Object> createSession(Map<String, Object> request) {
-        String requirementId = stringOrNull(request == null ? null : request.get("requirementId"));
-        String buildId = stringOrNull(request == null ? null : request.get("buildId"));
-        String asTicketId = stringOrNull(request == null ? null : request.get("asTicketId"));
-        int rootCount = (requirementId == null ? 0 : 1) + (buildId == null ? 0 : 1) + (asTicketId == null ? 0 : 1);
-        if (rootCount != 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requirementId, buildId, asTicketId 중 정확히 하나만 보내야 합니다.");
-        }
+    public Map<String, Object> createSession(AgentSessionCreateRequest request) {
+        AgentSessionRoot root = parseRoot(request);
         Map<String, Object> row = jdbcTemplate.queryForMap("""
                 INSERT INTO agent_sessions (
                   user_id,
@@ -49,7 +43,8 @@ public class AgentQueryService {
                   ?::jsonb
                 )
                 RETURNING public_id::text AS id, status, created_at
-                """, requirementId, buildId, asTicketId, json(List.of(timelineItem(null, "QUEUED", "USER", "session created"))));
+                """, root.requirementId(), root.buildId(), root.asTicketId(),
+                json(List.of(timelineItem(null, "QUEUED", "USER", "session created for " + root.purpose()))));
         String id = DbValueMapper.string(row, "id");
         return session(id);
     }
@@ -204,8 +199,12 @@ public class AgentQueryService {
         return timeline;
     }
 
-    private static String stringOrNull(Object value) {
-        return value == null ? null : value.toString();
+    private static AgentSessionRoot parseRoot(AgentSessionCreateRequest request) {
+        try {
+            return AgentSessionRoot.from(request);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
     }
 
     private static String json(Object value) {
