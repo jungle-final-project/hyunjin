@@ -4,6 +4,7 @@ import com.buildgraph.prototype.common.DbValueMapper;
 import com.buildgraph.prototype.common.MockData;
 import com.buildgraph.prototype.rag.RagQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -27,11 +28,8 @@ public class AgentQueryService {
         String buildId = stringOrNull(request == null ? null : request.get("buildId"));
         String asTicketId = stringOrNull(request == null ? null : request.get("asTicketId"));
         int rootCount = (requirementId == null ? 0 : 1) + (buildId == null ? 0 : 1) + (asTicketId == null ? 0 : 1);
-        if (rootCount > 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requirementId, buildId, asTicketId 중 하나만 보낼 수 있습니다.");
-        }
-        if (requirementId == null && buildId == null && asTicketId == null) {
-            requirementId = latestRequirementId();
+        if (rootCount != 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requirementId, buildId, asTicketId 중 정확히 하나만 보내야 합니다.");
         }
         Map<String, Object> row = jdbcTemplate.queryForMap("""
                 INSERT INTO agent_sessions (
@@ -51,34 +49,25 @@ public class AgentQueryService {
                   ?::jsonb
                 )
                 RETURNING public_id::text AS id, status, created_at
-                """, requirementId, buildId, asTicketId, json(List.of(timelineItem(null, "QUEUED", "SYSTEM", "session created"))));
+                """, requirementId, buildId, asTicketId, json(List.of(timelineItem(null, "QUEUED", "USER", "session created"))));
         String id = DbValueMapper.string(row, "id");
-        return MockData.map(
-                "id", id,
-                "status", DbValueMapper.string(row, "status"),
-                "mode", "LIMITED_ORCHESTRATOR",
-                "nextAction", "/api/agent/sessions/" + id + "/run"
-        );
+        return session(id);
     }
 
     public Map<String, Object> runSession(String id) {
-        Map<String, Object> timeline = MockData.map(
-                "timeline", List.of(
-                        timelineItem(null, "QUEUED", "SYSTEM", "session created"),
-                        timelineItem("QUEUED", "RUNNING", "SYSTEM", "agent run requested"),
-                        timelineItem("RUNNING", "RAG_SEARCHED", "SYSTEM", "evidence retrieved"),
-                        timelineItem("RAG_SEARCHED", "TOOLS_CALLED", "SYSTEM", "tools completed"),
-                        timelineItem("TOOLS_CALLED", "SUMMARY_READY", "SYSTEM", "summary generated")
-                )
-        );
+        Map<String, Object> row = agentSessionRow(id);
+        String currentStatus = DbValueMapper.string(row, "status");
+        if (!"QUEUED".equals(currentStatus)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "QUEUED 상태의 Agent session만 실행할 수 있습니다.");
+        }
+        List<Object> timeline = appendTimeline(row, currentStatus, "RUNNING", "SYSTEM", "agent run requested");
         jdbcTemplate.update("""
                 UPDATE agent_sessions
-                SET status = 'SUMMARY_READY',
-                    summary = COALESCE(summary, 'DB-backed prototype agent summary.'),
+                SET status = 'RUNNING',
                     state_timeline = ?::jsonb,
                     updated_at = now()
                 WHERE public_id = ?::uuid
-                """, json(timeline.get("timeline")), id);
+                """, json(timeline), id);
         return session(id);
     }
 
@@ -89,8 +78,8 @@ public class AgentQueryService {
                 "status", DbValueMapper.string(row, "status"),
                 "stateTimeline", DbValueMapper.json(row, "state_timeline", List.of()),
                 "summary", DbValueMapper.string(row, "summary"),
-                "toolInvocations", toolInvocationsBySession(id),
-                "ragEvidence", ragQueryService.evidenceBySession(id)
+                "toolInvocationIds", toolInvocationIdsBySession(id),
+                "evidenceIds", evidenceIdsBySession(id)
         );
     }
 
@@ -102,7 +91,7 @@ public class AgentQueryService {
                 "summary", DbValueMapper.string(row, "summary"),
                 "stateTimeline", DbValueMapper.json(row, "state_timeline", List.of()),
                 "toolInvocations", toolInvocationsBySession(id),
-                "evidenceIds", ragQueryService.evidenceBySession(id).stream().map(evidence -> evidence.get("id")).toList()
+                "evidenceIds", evidenceIdsBySession(id)
         );
     }
 
@@ -161,6 +150,14 @@ public class AgentQueryService {
                 .toList();
     }
 
+    private List<Object> toolInvocationIdsBySession(String sessionId) {
+        return toolInvocationsBySession(sessionId).stream().map(invocation -> invocation.get("id")).toList();
+    }
+
+    private List<Object> evidenceIdsBySession(String sessionId) {
+        return ragQueryService.evidenceBySession(sessionId).stream().map(evidence -> evidence.get("id")).toList();
+    }
+
     private String toolInvocationSql() {
         return """
                 SELECT ti.public_id::text AS id,
@@ -193,18 +190,18 @@ public class AgentQueryService {
         );
     }
 
-    private String latestRequirementId() {
-        List<String> rows = jdbcTemplate.queryForList("""
-                SELECT public_id::text
-                FROM requirements
-                ORDER BY created_at DESC, id DESC
-                LIMIT 1
-                """, String.class);
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
     private static Map<String, Object> timelineItem(String from, String to, String actor, String reason) {
         return MockData.map("from", from, "to", to, "at", MockData.now(), "actor", actor, "reason", reason);
+    }
+
+    private static List<Object> appendTimeline(Map<String, Object> row, String from, String to, String actor, String reason) {
+        List<Object> timeline = new ArrayList<>();
+        Object currentTimeline = DbValueMapper.json(row, "state_timeline", List.of());
+        if (currentTimeline instanceof List<?> currentItems) {
+            timeline.addAll(currentItems);
+        }
+        timeline.add(timelineItem(from, to, actor, reason));
+        return timeline;
     }
 
     private static String stringOrNull(Object value) {
