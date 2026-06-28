@@ -39,7 +39,8 @@ public class AgentQueryService {
         if (!"QUEUED".equals(currentStatus)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "QUEUED 상태의 Agent session만 실행할 수 있습니다.");
         }
-        List<Object> timeline = appendTimeline(row, currentStatus, "RUNNING", "SYSTEM", "agent run requested");
+        AgentRunProfile profile = AgentRunProfiles.forRoot(rootFromRow(row));
+        List<Object> timeline = appendTimeline(row, currentStatus, "RUNNING", "SYSTEM", "agent run requested for " + profile.purpose());
         jdbcTemplate.update("""
                 UPDATE agent_sessions
                 SET status = 'RUNNING',
@@ -69,6 +70,7 @@ public class AgentQueryService {
                 "status", DbValueMapper.string(row, "status"),
                 "summary", DbValueMapper.string(row, "summary"),
                 "stateTimeline", DbValueMapper.json(row, "state_timeline", List.of()),
+                "purpose", rootFromRow(row).purpose().name(),
                 "toolInvocations", toolInvocationsBySession(id),
                 "evidenceIds", evidenceIdsBySession(id)
         );
@@ -113,9 +115,20 @@ public class AgentQueryService {
 
     private Map<String, Object> agentSessionRow(String id) {
         return jdbcTemplate.queryForList("""
-                        SELECT public_id::text AS id, status, summary, state_timeline, created_at, updated_at
-                        FROM agent_sessions
-                        WHERE public_id = ?::uuid
+                        SELECT s.public_id::text AS id,
+                               s.status,
+                               s.summary,
+                               s.state_timeline,
+                               s.created_at,
+                               s.updated_at,
+                               r.public_id::text AS requirement_id,
+                               b.public_id::text AS build_id,
+                               t.public_id::text AS as_ticket_id
+                        FROM agent_sessions s
+                        LEFT JOIN requirements r ON r.id = s.requirement_id
+                        LEFT JOIN builds b ON b.id = s.build_id
+                        LEFT JOIN as_tickets t ON t.id = s.as_ticket_id
+                        WHERE s.public_id = ?::uuid
                         """, id)
                 .stream()
                 .findFirst()
@@ -171,6 +184,22 @@ public class AgentQueryService {
 
     private static Map<String, Object> timelineItem(String from, String to, String actor, String reason) {
         return AgentTraceService.timelineItem(from, to, actor, reason);
+    }
+
+    private static AgentSessionRoot rootFromRow(Map<String, Object> row) {
+        String requirementId = DbValueMapper.string(row, "requirement_id");
+        if (requirementId != null) {
+            return new AgentSessionRoot(AgentSessionRootType.REQUIREMENT, requirementId);
+        }
+        String buildId = DbValueMapper.string(row, "build_id");
+        if (buildId != null) {
+            return new AgentSessionRoot(AgentSessionRootType.BUILD, buildId);
+        }
+        String asTicketId = DbValueMapper.string(row, "as_ticket_id");
+        if (asTicketId != null) {
+            return new AgentSessionRoot(AgentSessionRootType.AS_TICKET, asTicketId);
+        }
+        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Agent session root를 확인할 수 없습니다.");
     }
 
     private static List<Object> appendTimeline(Map<String, Object> row, String from, String to, String actor, String reason) {
