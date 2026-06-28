@@ -3,7 +3,6 @@ package com.buildgraph.prototype.agent;
 import com.buildgraph.prototype.common.DbValueMapper;
 import com.buildgraph.prototype.common.MockData;
 import com.buildgraph.prototype.rag.RagQueryService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,38 +13,23 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AgentQueryService {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final JdbcTemplate jdbcTemplate;
     private final RagQueryService ragQueryService;
+    private final AgentTraceService agentTraceService;
 
-    public AgentQueryService(JdbcTemplate jdbcTemplate, RagQueryService ragQueryService) {
+    public AgentQueryService(
+            JdbcTemplate jdbcTemplate,
+            RagQueryService ragQueryService,
+            AgentTraceService agentTraceService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.ragQueryService = ragQueryService;
+        this.agentTraceService = agentTraceService;
     }
 
     public Map<String, Object> createSession(AgentSessionCreateRequest request) {
         AgentSessionRoot root = parseRoot(request);
-        Map<String, Object> row = jdbcTemplate.queryForMap("""
-                INSERT INTO agent_sessions (
-                  user_id,
-                  requirement_id,
-                  build_id,
-                  as_ticket_id,
-                  status,
-                  state_timeline
-                )
-                VALUES (
-                  (SELECT id FROM users WHERE email = 'user@example.com'),
-                  (SELECT id FROM requirements WHERE public_id = ?::uuid),
-                  (SELECT id FROM builds WHERE public_id = ?::uuid),
-                  (SELECT id FROM as_tickets WHERE public_id = ?::uuid),
-                  'QUEUED',
-                  ?::jsonb
-                )
-                RETURNING public_id::text AS id, status, created_at
-                """, root.requirementId(), root.buildId(), root.asTicketId(),
-                json(List.of(timelineItem(null, "QUEUED", "USER", "session created for " + root.purpose()))));
-        String id = DbValueMapper.string(row, "id");
+        String id = agentTraceService.createQueuedSession(root, "USER");
         return session(id);
     }
 
@@ -62,7 +46,7 @@ public class AgentQueryService {
                     state_timeline = ?::jsonb,
                     updated_at = now()
                 WHERE public_id = ?::uuid
-                """, json(timeline), id);
+                """, AgentTraceService.json(timeline), id);
         return session(id);
     }
 
@@ -186,7 +170,7 @@ public class AgentQueryService {
     }
 
     private static Map<String, Object> timelineItem(String from, String to, String actor, String reason) {
-        return MockData.map("from", from, "to", to, "at", MockData.now(), "actor", actor, "reason", reason);
+        return AgentTraceService.timelineItem(from, to, actor, reason);
     }
 
     private static List<Object> appendTimeline(Map<String, Object> row, String from, String to, String actor, String reason) {
@@ -207,11 +191,4 @@ public class AgentQueryService {
         }
     }
 
-    private static String json(Object value) {
-        try {
-            return OBJECT_MAPPER.writeValueAsString(value);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("JSON 변환에 실패했습니다.", e);
-        }
-    }
 }
