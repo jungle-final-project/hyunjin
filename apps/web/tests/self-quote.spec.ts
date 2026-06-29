@@ -41,7 +41,7 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
   let draft: unknown = emptyDraft;
 
   await page.addInitScript(() => {
-    localStorage.setItem('buildgraph.token', 'demo-access-user');
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
   });
 
   await page.route('**/api/quote-drafts/current**', async (route) => {
@@ -167,6 +167,10 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
 });
 
 test('opens cooler internal assets from home category link', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+  });
+
   await page.route('**/api/parts**', async (route) => {
     const url = new URL(route.request().url());
     const category = url.searchParams.get('category') ?? '';
@@ -218,6 +222,10 @@ test('opens cooler internal assets from home category link', async ({ page }) =>
 });
 
 test('opens GPU internal assets from home category link', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+  });
+
   await page.route('**/api/parts**', async (route) => {
     const url = new URL(route.request().url());
     const category = url.searchParams.get('category') ?? '';
@@ -266,6 +274,10 @@ test('opens GPU internal assets from home category link', async ({ page }) => {
 test('paginates self quote assets in 20 item pages', async ({ page }) => {
   const requestedPages: string[] = [];
   const requestedSizes: string[] = [];
+
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+  });
 
   await page.route('**/api/parts**', async (route) => {
     const url = new URL(route.request().url());
@@ -366,7 +378,7 @@ test('updates quantity only for repeatable quote draft categories', async ({ pag
   });
 
   await page.addInitScript(() => {
-    localStorage.setItem('buildgraph.token', 'demo-access-user');
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
   });
 
   await page.route('**/api/quote-drafts/current**', async (route) => {
@@ -462,7 +474,7 @@ test('returns to product detail after login and saves selected part to quote dra
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        accessToken: 'demo-access-user',
+        accessToken: 'jwt-user-token',
         refreshToken: 'demo-refresh-user',
         user: {
           id: 'user-test',
@@ -474,9 +486,22 @@ test('returns to product detail after login and saves selected part to quote dra
     });
   });
 
+  await page.route('**/api/auth/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'user-test',
+        email: 'user@example.com',
+        name: 'Demo User',
+        role: 'USER'
+      })
+    });
+  });
+
   await page.route('**/api/quote-drafts/current/items/part-gpu-detail-test', async (route) => {
     expect(route.request().method()).toBe('PUT');
-    expect(route.request().headers().authorization).toBe('Bearer demo-access-user');
+    expect(route.request().headers().authorization).toBe('Bearer jwt-user-token');
     savedToDraft = true;
     await route.fulfill({
       status: 200,
@@ -503,12 +528,13 @@ test('returns to product detail after login and saves selected part to quote dra
   });
 
   await page.goto('/parts/part-gpu-detail-test');
-  await page.getByRole('button', { name: '견적에 담기' }).click();
-
   await expect(page).toHaveURL('/login?redirect=%2Fparts%2Fpart-gpu-detail-test');
   await page.getByRole('button', { name: '로그인' }).click();
 
   await expect(page).toHaveURL('/parts/part-gpu-detail-test');
+  await expect(page.getByText('로그인됨 · user@example.com · USER')).toBeVisible();
+  await expect(page.getByText('Demo User')).toBeVisible();
+  await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
   await page.getByRole('button', { name: '견적에 담기' }).click();
 
   await expect(page.getByText('내 견적초안에 저장했습니다.')).toBeVisible();

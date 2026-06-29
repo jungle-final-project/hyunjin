@@ -45,12 +45,12 @@ public class UserController {
         return userQueryService.me(authorization);
     }
 
-    record LoginRequest(@Email String email, @NotBlank String password) {
+    record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
     }
 
     record SignupRequest(
             @NotBlank String name,
-            @Email String email,
+            @NotBlank @Email String email,
             @NotBlank String password,
             @NotNull Boolean termsAccepted,
             Boolean marketingAccepted

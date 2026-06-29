@@ -1222,6 +1222,7 @@ V26__premium_intent_requirement_parse_rag.sql
 V27__rag_v2_policy_example_seed.sql
 V28__quote_drafts.sql
 V29__quote_draft_category_policy.sql
+V30__auth_seed_password_hashes.sql
 ```
 
 현재 저장소에는 위 순서의 Flyway migration이 반영되어 있다. 기존 PostgreSQL volume이 남아 있으면 새 migration과 seed가 다시 실행되지 않으므로, 공통 DB를 처음부터 검증할 때는 `docker compose down -v` 후 `docker compose up --build`를 사용한다.

@@ -52,7 +52,7 @@ Figma 기준으로 5번이 직접 맡아야 할 화면은 `153:1880 STATE-15 ADM
 
 | 기능 단위 | 상태 | 최신 판단 |
 | --- | --- | --- |
-| JWT/Token 연동 | 진행중 | 현재 admin/user API는 demo token skeleton이다. 1번 JWT 구현 후 admin API 권한 분기를 실제 security 정책으로 전환할지 검토 필요 |
+| JWT/Token 연동 | 진행중 | 현재 admin/user API는 seed 사용자 비밀번호 검증과 JWT access token을 사용한다. Spring Security filter 전환 여부는 후속 작업에서 검토한다. |
 | Auth Error 연동 | 진행중 | `ApiExceptionHandler`의 401/403 `ErrorResponse`는 완료. 400 validation, 409 duplicate, refresh/logout 오류 shape는 1번 Auth 구현 후 검토 필요 |
 | AdminDashboard | 완료 | `GET /api/admin/dashboard`가 OpenAPI DTO 기준 필드와 일치한다. 계약 변경 시 계속 동시 검토 필요 |
 | Admin Audit Logs | 완료 | `GET /api/admin/audit-logs/recent` 응답 shape, seed 조회, 권한 테스트, 프론트 표시 연결 완료 |
@@ -179,7 +179,7 @@ Figma 기준으로 5번이 직접 맡아야 할 화면은 `153:1880 STATE-15 ADM
 - [x] `adminApi.ts`에 `AdminDashboard` 타입이 있다.
 - [x] 백엔드 `GET /api/admin/dashboard` endpoint가 있다.
 - [x] 백엔드 `GET /api/admin/audit-logs/recent` endpoint가 있다.
-- [x] 백엔드 admin endpoint에서 `requireAdmin()`으로 demo admin token을 검사한다.
+- [x] 백엔드 admin endpoint에서 `CurrentUserService.requireAdmin()`으로 JWT와 `ADMIN` role을 검사한다.
 - [x] `AdminDashboard` DTO 정합성은 백엔드/OpenAPI 계약 기준으로 프론트를 맞추기로 결정했다.
 - [x] `adminApi.ts`의 `AdminDashboard` 타입을 `agentRunning`, `openTickets`, `priceJobsRunning`, `degraded`, `generatedAt` 기준으로 수정했다.
 - [x] `AdminDashboardPage.tsx` metric 표시를 실제 API 응답 필드 기준으로 수정했다.
@@ -201,12 +201,12 @@ Figma 기준으로 5번이 직접 맡아야 할 화면은 `153:1880 STATE-15 ADM
 - [x] 현재 구현된 `UserController` API skeleton 테스트를 작성했다. 테스트 파일: `apps/api/src/test/java/com/buildgraph/prototype/user/UserControllerTest.java`
 - [x] `POST /api/auth/login` skeleton response shape를 테스트했다.
 - [x] `POST /api/users` 신규/기존 사용자 response shape를 테스트했다.
-- [x] `GET /api/auth/me` demo token 응답과 token 없음 401 `ErrorResponse`를 테스트했다.
-- [x] 로그인/회원가입 완성도 점검 결과, 현재 구현은 완성 인증이 아니라 demo token 기반 skeleton임을 확인했다.
-- [x] `POST /api/auth/login`은 현재 password를 검증하지 않고 email 조회만으로 `demo-access-*` token을 반환한다.
-- [x] `POST /api/users`는 현재 실제 password hash가 아니라 고정 문자열 `seed-signup-password-hash`를 저장한다.
-- [x] `GET /api/auth/me`는 JWT 검증이 아니라 `Bearer demo-access-*` 문자열 포함 여부로 admin/user를 판정한다.
-- [x] `/login`, `/signup` 화면은 렌더링 smoke test는 통과하지만 실제 입력값을 읽지 않고 고정 email/password로 API를 호출한다.
+- [x] `GET /api/auth/me` JWT 응답과 token 없음 401 `ErrorResponse`를 테스트했다.
+- [x] 로그인/회원가입 점검 결과, 현재 구현은 seed 사용자 비밀번호 검증과 JWT access token 발급/검증 흐름을 사용한다.
+- [x] `POST /api/auth/login`은 password hash를 검증하고 JWT access token을 반환한다.
+- [x] `POST /api/users`는 입력 password를 hash로 저장한다.
+- [x] `GET /api/auth/me`는 JWT를 검증하고 subject의 `users.public_id`로 현재 사용자를 조회한다.
+- [x] `/login`, `/signup` 화면은 실제 입력값을 읽어 Auth API를 호출한다.
 - [x] password hashing, login password verification, JWT 발급/검증, refresh token hash 저장/회전, logout revoke, validation error shape, duplicate email 409 처리는 1번 Auth/User 백엔드 작업으로 이관했다.
 - [x] OpenAPI에 있는 `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/google/start`, `GET /api/auth/google/callback`, `POST /api/auth/exchange` 구현은 1번에게 이관했다.
 - [x] 5번은 1번 Auth 구현 후 `api.ts`, `RequireAdmin`, admin guard, API 계약 충돌 여부를 검토한다.
@@ -233,9 +233,9 @@ Figma 기준으로 5번이 직접 맡아야 할 화면은 `153:1880 STATE-15 ADM
 - [x] `buildgraph-web`에서 Vite dev server가 `0.0.0.0:5173`으로 기동되는 것을 확인했다.
 - [x] `buildgraph-api`에서 Spring Boot, DB 연결, Flyway migration validation이 정상 완료되는 것을 확인했다.
 - [x] `http://localhost:8080/api/health`와 `http://localhost:5173/api/health`가 모두 `{"status":"UP","database":"UP"}`를 반환함을 확인했다.
-- [x] 관리자 화면의 브라우저 로딩 원인이 Docker/API hang이 아니라 브라우저 localStorage의 오래된 demo token 불일치일 수 있음을 확인했다.
-- [x] 백엔드 demo admin token 기준이 `demo-access-admin`이고, 이전 테스트용 `demo-jwt-admin`은 401을 반환함을 확인했다.
-- [x] 관리자 화면 수동 확인 시 `localStorage.setItem('buildgraph.token', 'demo-access-admin')` 후 reload가 필요할 수 있음을 정리했다.
+- [x] 관리자 화면의 브라우저 로딩 원인이 Docker/API hang이 아니라 브라우저 localStorage의 오래된 token 불일치일 수 있음을 확인했다.
+- [x] 백엔드 admin 인증 기준은 `admin@example.com` 로그인으로 발급받은 JWT access token이며, legacy 문자열 token은 401을 반환함을 확인했다.
+- [x] 관리자 화면 수동 확인 시 로그인 화면에서 `admin@example.com / passw0rd!`로 로그인한 뒤 `/admin`에 접근해야 함을 정리했다.
 
 ## 해야 할 일
 
@@ -338,14 +338,14 @@ AdminShell nav 분석 결과:
 - [x] password hashing, login password verification, JWT 발급/검증, refresh token hash 저장/회전/폐기, duplicate email 409, Auth validation error 구현은 1번에게 이관한다.
 - [ ] 1번 Auth API 구현 후 `apps/web/src/lib/api.ts`의 Authorization header/token 저장 정책과 충돌 없는지 확인한다.
 - [ ] 1번 Auth API 구현 후 `RequireAdmin`이 실제 JWT/role 기반 `/api/auth/me` 응답과 맞는지 확인한다.
-- [ ] 1번 Auth API 구현 후 admin API 권한 분기를 demo token에서 실제 JWT/security 정책으로 전환할지 결정한다.
+- [ ] Spring Security filter 도입 시 admin API 권한 분기를 현재 `CurrentUserService` 기반 JWT 검사에서 filter 기반 정책으로 전환할지 결정한다.
 - [ ] Auth API 계약 변경 시 `docs/API_CONTRACT.md`와 `docs/openapi.yaml`의 오류 응답/예시를 1번 변경과 같이 검토한다.
 - [x] 401과 403 메시지를 더 명확히 분리한다. 프론트는 로그인 필요/관리자 권한 없음 메시지를 분리하고, 백엔드는 `UNAUTHORIZED`/`FORBIDDEN` 응답을 분리한다.
 - [x] token이 만료되었을 때 `clearToken()`을 호출할지 결정한다. 결정: protected API에서 refresh 재시도까지 실패하거나 refresh가 없는 상태의 401이면 access token을 정리한다.
 - [x] refresh retry를 `api.ts` 공통에 둘지, 1번 Auth flow 내부에 둘지 결정한다. 결정: refresh endpoint/응답 정책은 1번이 구현하고, 공통 재시도 wrapper는 `api.ts`에 최대 1회만 둔다.
 - [x] `/api/auth/logout` 호출 후 프론트 token 정리 흐름을 정한다. 결정: 1번이 logout API를 호출하고, 성공 또는 강제 로그아웃 시 5번 helper인 `clearToken()`으로 로컬 token을 정리한다.
 - [x] OAuth callback/exchange는 1번 구현 범위이며, 5번은 token 저장/전달 연동만 검토한다.
-- [x] AdminController demo token 검사 방식에서 실제 JWT 검증으로 넘어갈 위치를 문서화한다. 전환 위치는 `config/security`/JWT filter, `GET /api/auth/me`, `RequireAdmin`, `apps/web/src/lib/api.ts` 연동 지점이다.
+- [x] AdminController 인증 검사 방식에서 Spring Security JWT filter로 넘어갈 위치를 문서화한다. 전환 위치는 `config/security`/JWT filter, `GET /api/auth/me`, `RequireAdmin`, `apps/web/src/lib/api.ts` 연동 지점이다.
 
 #### Common API Client 정책 결정
 
@@ -357,7 +357,7 @@ AdminShell nav 분석 결과:
 | refresh retry | `api.ts` 공통 wrapper에서 요청당 최대 1회만 허용 | `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/exchange`는 retry 제외 |
 | logout | 1번 Auth flow가 logout API를 호출하고, 프론트 token 정리는 `clearToken()` 사용 | logout API 실패 시에도 강제 로컬 로그아웃이 필요한지 1번 PR에서 최종 확인 |
 | error normalization | `ApiError`가 backend `ErrorResponse`의 `code`, `message`, `details`, `status`를 보존하는 방향 | 공통 `ErrorResponse` 세부 field가 변경되면 `API_CONTRACT.md`/`openapi.yaml` 동시 수정 |
-| admin guard | `RequireAdmin`은 `getToken()` 확인 후 `/api/auth/me`의 `role`을 기준으로 판단 | 1번 JWT 구현 후 demo token 의존 제거와 security chain 전환 검토 |
+| admin guard | `RequireAdmin`은 `getToken()` 확인 후 `/api/auth/me`의 `role`을 기준으로 판단 | security chain 전환 검토 |
 
 ### 7. Backend/Admin/Health
 
@@ -414,7 +414,7 @@ AdminShell nav 분석 결과:
 - [x] Sprint 1에서는 실제 사용자 메일 발송 로직을 5번이 임의 구현하지 않는다고 기록한다.
 - [ ] 2번이 price alert email을 구현하면 Mailpit으로 목표가 알림 메일 수신 여부를 확인한다.
 - [ ] 1번이 회원가입 인증 메일을 요구하면 Auth owner와 API 계약을 먼저 확정한다.
-- [x] `docker compose up --build`로 전체 실행을 확인한다. 확인 범위: 컨테이너 기동, web/API 포트 응답, `/api/health`, Vite proxy health, 관리자 demo token 응답
+- [x] `docker compose up --build`로 전체 실행을 확인한다. 확인 범위: 컨테이너 기동, web/API 포트 응답, `/api/health`, Vite proxy health, 관리자 JWT 응답
 - [x] k6 smoke와 실제 부하 테스트 시나리오를 분리한다. 결정: Sprint 1 k6는 `infra/k6/smoke.js`와 `docs/reports/k6-smoke-report-template.md` 기준의 smoke 결과 기록으로 두고, 300명/1000명 부하는 별도 확장 작업으로 분리한다.
 - [x] 300명/1000명 목표가 이번 Sprint인지 이후 Sprint인지 확정한다. 결정: 300명은 2주차, 1,000명은 4주차 목표로 둔다.
 - [x] 성능 리포트 템플릿을 만든다. 파일: `docs/reports/k6-smoke-report-template.md`
@@ -496,7 +496,7 @@ AdminShell nav 분석 결과:
 1. **1번 Auth 구현 후 5번 공통 연동 검토**
    - `apps/web/src/lib/api.ts`의 token 저장/전달 정책이 실제 access token/refresh token 응답과 맞는지 확인한다.
    - `RequireAdmin`이 실제 `/api/auth/me`의 role, 401, 403 응답과 맞는지 확인한다.
-   - admin API 권한 분기를 demo token 검사에서 Spring Security/JWT 정책으로 전환할지 결정한다.
+   - admin API 권한 분기를 현재 JWT service 검사에서 Spring Security/JWT filter 정책으로 전환할지 결정한다.
 
 2. **Common API Client 구현 고도화**
    - 1번 refresh/JWT 구현 후 `api.ts`에 최대 1회 refresh retry를 구현한다.
@@ -527,7 +527,7 @@ AdminShell nav 분석 결과:
 | --- | --- | --- |
 | 로그인 토큰 공통 연결 | 1번이 로그인/JWT/로그아웃/구글 로그인을 만들면 `api.ts`, `RequireAdmin`, 관리자 권한 검사와 충돌 없는지 확인 | 대기 |
 | API 공통 호출 함수 | 로그인 만료 시 토큰 삭제, API 오류 응답 통일, refresh 재시도 1회 처리 | 1번 Auth 이후 |
-| 관리자 권한 검사 | demo token 방식에서 실제 JWT/Spring Security 방식으로 바꿀지 결정 | 1번 JWT 이후 |
+| 관리자 권한 검사 | 현재 JWT service 방식에서 Spring Security filter 방식으로 바꿀지 결정 | 후속 보안 정리 시점 |
 | 관리자 메뉴/레이아웃 | 관리자 메뉴 이름과 순서를 2/3/4번 담당자와 공유 | 바로 가능 |
 | 동시 접속 부하 테스트 | 300명/1000명 접속 상황 테스트 시나리오 만들기 | 남음 |
 | Redis 임시 저장소 | 구글 로그인 임시 코드, AI 결과 캐시, 사용량 제한 정책 검토 | 1번/3번 이후 |

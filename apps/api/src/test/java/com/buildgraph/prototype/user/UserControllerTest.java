@@ -117,8 +117,8 @@ class UserControllerTest {
     }
 
     @Test
-    void meReturnsCurrentUserForDemoToken() throws Exception {
-        when(userQueryService.me("Bearer demo-access-admin")).thenReturn(Map.of(
+    void meReturnsCurrentUserForJwtToken() throws Exception {
+        when(userQueryService.me("Bearer jwt-admin-token")).thenReturn(Map.of(
                 "id", "00000000-0000-4000-8000-000000000001",
                 "email", "admin@example.com",
                 "name", "Admin User",
@@ -126,14 +126,14 @@ class UserControllerTest {
         ));
 
         mockMvc.perform(get("/api/auth/me")
-                        .header("Authorization", "Bearer demo-access-admin"))
+                        .header("Authorization", "Bearer jwt-admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("00000000-0000-4000-8000-000000000001"))
                 .andExpect(jsonPath("$.email").value("admin@example.com"))
                 .andExpect(jsonPath("$.name").value("Admin User"))
                 .andExpect(jsonPath("$.role").value("ADMIN"));
 
-        verify(userQueryService).me("Bearer demo-access-admin");
+        verify(userQueryService).me("Bearer jwt-admin-token");
     }
 
     @Test

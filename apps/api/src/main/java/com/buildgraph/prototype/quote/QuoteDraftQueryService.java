@@ -2,6 +2,7 @@ package com.buildgraph.prototype.quote;
 
 import com.buildgraph.prototype.common.DbValueMapper;
 import com.buildgraph.prototype.common.MockData;
+import com.buildgraph.prototype.user.CurrentUserService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,9 +18,11 @@ public class QuoteDraftQueryService {
     private static final Set<String> MULTI_ITEM_CATEGORIES = Set.of("RAM", "STORAGE");
 
     private final JdbcTemplate jdbcTemplate;
+    private final CurrentUserService currentUserService;
 
-    public QuoteDraftQueryService(JdbcTemplate jdbcTemplate) {
+    public QuoteDraftQueryService(JdbcTemplate jdbcTemplate, CurrentUserService currentUserService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.currentUserService = currentUserService;
     }
 
     public Map<String, Object> current(String authorization) {
@@ -83,20 +86,7 @@ public class QuoteDraftQueryService {
     }
 
     private Long currentUserId(String authorization) {
-        if (authorization == null || !authorization.startsWith("Bearer demo-access-")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-        String email = authorization.contains("admin") ? "admin@example.com" : "user@example.com";
-        return jdbcTemplate.queryForList("""
-                        SELECT id
-                        FROM users
-                        WHERE email = ?
-                          AND deleted_at IS NULL
-                        """, email)
-                .stream()
-                .findFirst()
-                .map(row -> longValue(row, "id"))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "등록된 사용자를 찾을 수 없습니다."));
+        return currentUserService.requireUser(authorization).internalId();
     }
 
     private Map<String, Object> activeDraft(Long userId) {

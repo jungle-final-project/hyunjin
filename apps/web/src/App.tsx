@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginPage, SignupPage } from './features/auth/AuthPages';
 import { RequireAdmin } from './features/auth/RequireAdmin';
+import { RequireUser } from './features/auth/RequireUser';
 import { PartDetailPage, SelfQuotePage } from './features/parts/PartsPages';
 import { BuildResultPage, ChangePartPage, HomePage, MyQuotesPage, RequirementPage } from './features/quote/QuotePages';
 import { SupportNewPage, SupportTicketPage } from './features/support/SupportPages';
@@ -9,15 +10,15 @@ import { AdminDashboardPage, AdminLoadTestsPage, AdminPartsPage, AdminPriceJobsP
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/requirements/new" element={<RequirementPage />} />
-      <Route path="/builds/:buildId" element={<BuildResultPage />} />
-      <Route path="/self-quote" element={<SelfQuotePage />} />
-      <Route path="/parts/:partId" element={<PartDetailPage />} />
-      <Route path="/builds/:buildId/change-part" element={<ChangePartPage />} />
-      <Route path="/my/quotes" element={<MyQuotesPage />} />
-      <Route path="/support/new" element={<SupportNewPage />} />
-      <Route path="/support/:ticketId" element={<SupportTicketPage />} />
+      <Route path="/" element={<RequireUser preserveRedirect={false}><HomePage /></RequireUser>} />
+      <Route path="/requirements/new" element={<RequireUser><RequirementPage /></RequireUser>} />
+      <Route path="/builds/:buildId" element={<RequireUser><BuildResultPage /></RequireUser>} />
+      <Route path="/self-quote" element={<RequireUser><SelfQuotePage /></RequireUser>} />
+      <Route path="/parts/:partId" element={<RequireUser><PartDetailPage /></RequireUser>} />
+      <Route path="/builds/:buildId/change-part" element={<RequireUser><ChangePartPage /></RequireUser>} />
+      <Route path="/my/quotes" element={<RequireUser><MyQuotesPage /></RequireUser>} />
+      <Route path="/support/new" element={<RequireUser><SupportNewPage /></RequireUser>} />
+      <Route path="/support/:ticketId" element={<RequireUser><SupportTicketPage /></RequireUser>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/admin" element={<RequireAdmin><AdminDashboardPage /></RequireAdmin>} />

@@ -20,13 +20,14 @@ import org.springframework.web.server.ResponseStatusException;
 class UserQueryServiceLoginTest {
     private final JdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(JdbcTemplate.class);
     private final PasswordService passwordService = new PasswordService();
+    private final CurrentUserService currentUserService = org.mockito.Mockito.mock(CurrentUserService.class);
     private final JwtTokenService jwtTokenService = new JwtTokenService(
             "test-buildgraph-jwt-secret-change-me-2026",
             "buildgraph-api-test",
             Duration.ofMinutes(15),
             Clock.fixed(Instant.parse("2026-06-29T09:00:00Z"), ZoneOffset.UTC)
     );
-    private final UserQueryService userQueryService = new UserQueryService(jdbcTemplate, passwordService, jwtTokenService);
+    private final UserQueryService userQueryService = new UserQueryService(jdbcTemplate, passwordService, jwtTokenService, currentUserService);
 
     @Test
     void loginReturnsAuthResponseWhenPasswordMatches() throws Exception {

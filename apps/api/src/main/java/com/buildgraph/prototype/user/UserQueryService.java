@@ -15,11 +15,18 @@ public class UserQueryService {
     private final JdbcTemplate jdbcTemplate;
     private final PasswordService passwordService;
     private final JwtTokenService jwtTokenService;
+    private final CurrentUserService currentUserService;
 
-    public UserQueryService(JdbcTemplate jdbcTemplate, PasswordService passwordService, JwtTokenService jwtTokenService) {
+    public UserQueryService(
+            JdbcTemplate jdbcTemplate,
+            PasswordService passwordService,
+            JwtTokenService jwtTokenService,
+            CurrentUserService currentUserService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordService = passwordService;
         this.jwtTokenService = jwtTokenService;
+        this.currentUserService = currentUserService;
     }
 
     public Map<String, Object> login(String email, String password) {
@@ -61,11 +68,7 @@ public class UserQueryService {
     }
 
     public Map<String, Object> me(String authorization) {
-        if (authorization == null || !authorization.startsWith("Bearer demo-access-")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-        String email = authorization.contains("admin") ? "admin@example.com" : "user@example.com";
-        return userMap(findByEmail(email));
+        return currentUserService.requireUser(authorization).toUserMap();
     }
 
     private Map<String, Object> findByEmail(String email) {

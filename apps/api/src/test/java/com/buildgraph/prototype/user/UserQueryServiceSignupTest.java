@@ -19,13 +19,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class UserQueryServiceSignupTest {
     private final JdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(JdbcTemplate.class);
     private final PasswordService passwordService = new PasswordService();
+    private final CurrentUserService currentUserService = org.mockito.Mockito.mock(CurrentUserService.class);
     private final JwtTokenService jwtTokenService = new JwtTokenService(
             "test-buildgraph-jwt-secret-change-me-2026",
             "buildgraph-api-test",
             java.time.Duration.ofMinutes(15),
             java.time.Clock.systemUTC()
     );
-    private final UserQueryService userQueryService = new UserQueryService(jdbcTemplate, passwordService, jwtTokenService);
+    private final UserQueryService userQueryService = new UserQueryService(jdbcTemplate, passwordService, jwtTokenService, currentUserService);
 
     @Test
     void signupStoresPasswordHash() {

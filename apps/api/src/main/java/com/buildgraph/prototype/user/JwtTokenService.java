@@ -4,10 +4,12 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -65,6 +67,29 @@ public class JwtTokenService {
             return jwt.serialize();
         } catch (JOSEException exception) {
             throw new IllegalStateException("Failed to issue access token.", exception);
+        }
+    }
+
+    public JWTClaimsSet verifyAccessToken(String token) {
+        try {
+            SignedJWT jwt = SignedJWT.parse(token);
+            if (!jwt.verify(new MACVerifier(secret))) {
+                throw new IllegalArgumentException("Invalid access token signature.");
+            }
+            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+            if (!issuer.equals(claims.getIssuer())) {
+                throw new IllegalArgumentException("Invalid access token issuer.");
+            }
+            Date expirationTime = claims.getExpirationTime();
+            if (expirationTime == null || !expirationTime.toInstant().isAfter(clock.instant())) {
+                throw new IllegalArgumentException("Access token is expired.");
+            }
+            if (claims.getSubject() == null || claims.getSubject().isBlank()) {
+                throw new IllegalArgumentException("Access token subject is missing.");
+            }
+            return claims;
+        } catch (ParseException | JOSEException exception) {
+            throw new IllegalArgumentException("Invalid access token.", exception);
         }
     }
 

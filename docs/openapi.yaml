@@ -91,6 +91,8 @@ paths:
   /api/auth/me:
     get:
       summary: 현재 사용자 조회
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: 현재 사용자
@@ -132,6 +134,8 @@ paths:
   /api/requirements/parse:
     post:
       summary: 자연어 요구사항 파싱
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -148,6 +152,8 @@ paths:
   /api/builds/recommend:
     post:
       summary: 추천 Build 생성
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -164,6 +170,8 @@ paths:
   /api/builds/{id}:
     get:
       summary: Build 상세 조회
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -176,6 +184,8 @@ paths:
   /api/builds/history:
     get:
       summary: 내 Build 이력
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -189,6 +199,8 @@ paths:
   /api/builds/{id}/change-part:
     post:
       summary: Build 부품 변경
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       requestBody:
@@ -207,6 +219,8 @@ paths:
   /api/parts:
     get:
       summary: 부품 목록
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: category
@@ -252,6 +266,8 @@ paths:
   /api/parts/{id}:
     get:
       summary: 부품 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -265,6 +281,8 @@ paths:
     get:
       summary: 부품 가격 이력
       description: 저장된 price_snapshots를 기준으로 상품별 가격변동 추이를 조회한다. 외부 검색 API를 실시간 호출하지 않는다.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
         - in: query
@@ -296,6 +314,8 @@ paths:
   /api/quote-drafts/current:
     get:
       summary: 현재 로그인 사용자의 수동 견적초안
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: 현재 견적초안. active draft가 없으면 status=EMPTY로 반환한다.
@@ -306,6 +326,8 @@ paths:
   /api/quote-drafts/current/items/{partId}:
     put:
       summary: 견적초안에 부품 담기 또는 같은 카테고리 교체
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: partId
@@ -328,6 +350,8 @@ paths:
                 $ref: "#/components/schemas/QuoteDraftDto"
     patch:
       summary: 견적초안 부품 수량 변경
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: partId
@@ -350,6 +374,8 @@ paths:
                 $ref: "#/components/schemas/QuoteDraftDto"
     delete:
       summary: 견적초안에서 부품 제거
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: partId
@@ -367,6 +393,8 @@ paths:
   /api/price-alerts:
     get:
       summary: 목표가 알림 목록
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -379,6 +407,8 @@ paths:
                 $ref: "#/components/schemas/PriceAlertPage"
     post:
       summary: 목표가 알림 등록
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -395,6 +425,8 @@ paths:
   /api/admin/price-jobs:
     get:
       summary: 관리자 가격 수집 작업 목록
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -408,6 +440,8 @@ paths:
   /api/admin/price-jobs/run:
     post:
       summary: 가격 수집 작업 실행
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -425,6 +459,8 @@ paths:
     post:
       summary: 외부 상품 캐시 갱신
       description: 네이버 쇼핑 검색 API를 호출해 part_external_offers 캐시를 갱신한다. 사용자 부품 조회 API는 이 캐시만 읽는다.
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: category
@@ -453,6 +489,8 @@ paths:
     post:
       summary: 내부 자산 카탈로그 후보 갱신
       description: 카테고리별 query pack으로 외부 검색 API를 호출해 part_catalog_candidates를 채우고, publish=true일 때 parts에 게시한다. 사용자 부품 조회 API는 외부 API를 직접 호출하지 않는다.
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: category
@@ -486,6 +524,8 @@ paths:
   /api/tools/compatibility/check:
     post:
       summary: 호환성 Tool check
+      security:
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/ToolCheckRequestBody"
       responses:
@@ -494,6 +534,8 @@ paths:
   /api/tools/power/check:
     post:
       summary: 전력 Tool check
+      security:
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/ToolCheckRequestBody"
       responses:
@@ -502,6 +544,8 @@ paths:
   /api/tools/size/check:
     post:
       summary: 규격 Tool check
+      security:
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/ToolCheckRequestBody"
       responses:
@@ -510,6 +554,8 @@ paths:
   /api/tools/performance/check:
     post:
       summary: 성능 Tool check
+      security:
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/ToolCheckRequestBody"
       responses:
@@ -518,6 +564,8 @@ paths:
   /api/tools/price/check:
     post:
       summary: 가격 Tool check
+      security:
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/ToolCheckRequestBody"
       responses:
@@ -526,6 +574,8 @@ paths:
   /api/agent/sessions:
     post:
       summary: Agent 세션 생성
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -542,6 +592,8 @@ paths:
   /api/agent/sessions/{id}/run:
     post:
       summary: Agent 세션 실행 시작
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       requestBody:
@@ -561,6 +613,8 @@ paths:
   /api/agent/sessions/{id}:
     get:
       summary: Agent 세션 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -573,6 +627,8 @@ paths:
   /api/rag/search:
     get:
       summary: RAG 근거 검색
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: q
@@ -590,6 +646,8 @@ paths:
   /api/rag/evidence/{id}:
     get:
       summary: RAG 근거 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -602,6 +660,8 @@ paths:
   /api/agent-logs/upload:
     post:
       summary: PC Agent JSONL 로그 업로드
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -618,6 +678,8 @@ paths:
   /api/agent-logs/{id}:
     get:
       summary: Agent 로그 업로드 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -630,6 +692,8 @@ paths:
   /api/as-tickets:
     post:
       summary: AS 티켓 생성
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -646,6 +710,8 @@ paths:
   /api/as-tickets/{id}:
     get:
       summary: AS 티켓 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -658,6 +724,8 @@ paths:
   /api/admin/dashboard:
     get:
       summary: 관리자 대시보드
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: 관리자 요약
@@ -668,6 +736,8 @@ paths:
   /api/admin/audit-logs/recent:
     get:
       summary: 최근 관리자 감사 로그
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: 최근 감사 로그
@@ -678,6 +748,8 @@ paths:
   /api/admin/agent-sessions:
     get:
       summary: 관리자 Agent 세션 목록
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -691,6 +763,8 @@ paths:
   /api/admin/agent-sessions/{id}:
     get:
       summary: 관리자 Agent 세션 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -703,6 +777,8 @@ paths:
   /api/admin/tool-invocations:
     get:
       summary: 관리자 Tool 호출 목록
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -716,6 +792,8 @@ paths:
   /api/admin/tool-invocations/{id}:
     get:
       summary: 관리자 Tool 호출 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -728,6 +806,8 @@ paths:
   /api/admin/rag-evidence/{id}:
     get:
       summary: 관리자 RAG 근거 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -740,6 +820,8 @@ paths:
   /api/admin/as-tickets:
     get:
       summary: 관리자 AS 티켓 목록
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
@@ -753,6 +835,8 @@ paths:
   /api/admin/as-tickets/{id}:
     get:
       summary: 관리자 AS 티켓 상세
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       responses:
@@ -764,6 +848,8 @@ paths:
                 $ref: "#/components/schemas/AsTicketDto"
     patch:
       summary: 관리자 AS 티켓 수정
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PublicId"
       requestBody:
