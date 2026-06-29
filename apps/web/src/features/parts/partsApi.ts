@@ -1,5 +1,5 @@
 import { api } from '../../lib/api';
-import type { PartPage, PartSearchParams, PartRow } from './types';
+import type { PartPage, PartPriceHistory, PartPriceHistoryParams, PartSearchParams, PartRow } from './types';
 
 export function listParts(params: PartSearchParams = {}) {
   const search = new URLSearchParams();
@@ -14,6 +14,17 @@ export function listParts(params: PartSearchParams = {}) {
 
 export function getPart(partId: string) {
   return api<PartRow>(`/api/parts/${partId}`);
+}
+
+export function getPartPriceHistory(partId: string, params: PartPriceHistoryParams = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      search.set(key, String(value));
+    }
+  });
+  const query = search.toString();
+  return api<PartPriceHistory>(`/api/parts/${partId}/price-history${query ? `?${query}` : ''}`);
 }
 
 export function runToolCheck(tool: 'compatibility' | 'power' | 'size' | 'performance' | 'price', payload: unknown) {

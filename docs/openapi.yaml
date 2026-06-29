@@ -255,6 +255,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PartDto"
+  /api/parts/{id}/price-history:
+    get:
+      summary: 부품 가격 이력
+      description: 저장된 price_snapshots를 기준으로 상품별 가격변동 추이를 조회한다. 외부 검색 API를 실시간 호출하지 않는다.
+      parameters:
+        - $ref: "#/components/parameters/PublicId"
+        - in: query
+          name: days
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3650
+            default: 90
+        - in: query
+          name: source
+          schema:
+            type: string
+          description: "특정 가격 출처만 조회할 때 사용한다. 예: NAVER_SHOPPING_SEARCH"
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 120
+      responses:
+        "200":
+          description: 부품 가격 이력
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartPriceHistoryResponse"
   /api/price-alerts:
     get:
       summary: 목표가 알림 목록
@@ -1046,6 +1078,59 @@ components:
           type: string
           format: date-time
           nullable: true
+    PartPriceHistoryResponse:
+      type: object
+      required: [partId, partName, currentPrice, days, items, summary]
+      properties:
+        partId:
+          type: string
+          format: uuid
+        partName:
+          type: string
+        currentPrice:
+          type: integer
+        days:
+          type: integer
+        source:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceHistoryPoint"
+        summary:
+          $ref: "#/components/schemas/PriceHistorySummary"
+    PriceHistoryPoint:
+      type: object
+      required: [price, source, collectedAt]
+      properties:
+        price:
+          type: integer
+        source:
+          type: string
+        collectedAt:
+          type: string
+          format: date-time
+    PriceHistorySummary:
+      type: object
+      required: [sampleCount, currentPrice, minPrice, maxPrice, firstPrice, lastPrice, changeAmount, changeRatePercent]
+      properties:
+        sampleCount:
+          type: integer
+        currentPrice:
+          type: integer
+        minPrice:
+          type: integer
+        maxPrice:
+          type: integer
+        firstPrice:
+          type: integer
+        lastPrice:
+          type: integer
+        changeAmount:
+          type: integer
+        changeRatePercent:
+          type: number
     PriceAlertCreateRequest:
       type: object
       required: [partId, targetPrice]

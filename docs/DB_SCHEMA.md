@@ -924,6 +924,8 @@ JSONB 금지 대상:
 
 네이버 쇼핑 검색 갱신 작업이 `part_external_offers.low_price`를 저장하면 같은 가격을 `parts.price`에 동기화하고 `price_snapshots`에도 `NAVER_SHOPPING_SEARCH` 이력으로 남긴다. 따라서 `/api/parts`의 가격, 가격 정렬, 가격 필터, 목표가 알림의 현재가는 모두 마지막으로 저장된 외부 검색 가격이 우선 기준이다. 사용자 조회 API는 실시간 검색 API를 직접 호출하지 않고 저장된 값을 읽는다.
 
+상품별 가격변동 추이는 `price_snapshots` 누적 데이터가 기준이다. 네이버 쇼핑 검색 API는 현재 검색 결과를 가져오는 용도이고 과거 가격 이력을 소급 제공하는 계약으로 보지 않는다. 따라서 관리자 갱신 작업을 주기적으로 실행해 현재가를 계속 snapshot으로 쌓고, `GET /api/parts/{id}/price-history`가 이 누적 이력을 조회한다.
+
 `/api/parts`와 `/api/parts/{id}`는 외부 검색 API를 직접 호출하지 않는다. 내부 자산 최신화는 `part_catalog_refresh_jobs` 작업이 외부 API를 호출해 `part_catalog_candidates`를 채운 뒤, 게시된 후보를 `parts`에 반영하는 방식으로 수행한다. 사용자 화면은 마지막으로 저장된 `parts`와 `part_external_offers` row만 읽는다.
 
 카테고리별 대량 갱신은 query pack을 사용한다. GPU, MOTHERBOARD, PSU처럼 제조사와 라인업이 많은 category는 한 검색어에 의존하지 않고 여러 모델/제조사 검색어를 나눠 후보를 수십 개 이상 확보한다.

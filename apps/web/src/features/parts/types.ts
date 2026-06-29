@@ -43,6 +43,39 @@ export type PartSearchParams = {
   sort?: 'category' | 'price_asc' | 'price_desc' | 'name';
 };
 
+export type PartPriceHistoryPoint = {
+  price: number;
+  source: string;
+  collectedAt: string;
+};
+
+export type PartPriceHistorySummary = {
+  sampleCount: number;
+  currentPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  firstPrice: number;
+  lastPrice: number;
+  changeAmount: number;
+  changeRatePercent: number;
+};
+
+export type PartPriceHistory = {
+  partId: string;
+  partName: string;
+  currentPrice: number;
+  days: number;
+  source?: string | null;
+  items: PartPriceHistoryPoint[];
+  summary: PartPriceHistorySummary;
+};
+
+export type PartPriceHistoryParams = {
+  days?: number;
+  source?: string;
+  limit?: number;
+};
+
 export type ToolRow = {
   tool: string;
   status: string;

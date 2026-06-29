@@ -5,6 +5,33 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
 
   await page.route('**/api/parts**', async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.includes('/price-history')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          partId: 'part-gpu-test',
+          partName: 'RTX 4070 SUPER 테스트',
+          currentPrice: 890000,
+          days: 3650,
+          source: 'NAVER_SHOPPING_SEARCH',
+          items: [
+            { price: 890000, source: 'NAVER_SHOPPING_SEARCH', collectedAt: '2026-06-29T00:00:00Z' }
+          ],
+          summary: {
+            sampleCount: 1,
+            currentPrice: 890000,
+            minPrice: 890000,
+            maxPrice: 890000,
+            firstPrice: 890000,
+            lastPrice: 890000,
+            changeAmount: 0,
+            changeRatePercent: 0
+          }
+        })
+      });
+      return;
+    }
     const category = url.searchParams.get('category') ?? '';
     requestedCategories.push(category);
 
@@ -75,6 +102,7 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
   await page.getByRole('button', { name: 'RTX 4070 SUPER 테스트 견적 담기' }).click();
   await expect(page.getByText('견적 합계')).toBeVisible();
   await expect(page.getByText('890,000원')).toHaveCount(3);
+  await expect(page.getByText('가격 기록 1개')).toBeVisible();
 
   await page.getByRole('button', { name: 'RTX 4070 SUPER 테스트 견적에서 제거' }).click();
   await expect(page.getByText('왼쪽 목록에서 부품을 담으면 이곳에 내 견적이 쌓입니다.')).toBeVisible();

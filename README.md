@@ -146,7 +146,7 @@ docker compose up --build
 
 셀프 견적 화면은 항상 DB에 저장된 내부 자산 `parts`를 읽습니다. 사용자 부품 조회 API는 네이버 쇼핑 검색 API를 직접 호출하지 않습니다. 외부 API는 관리자 갱신 작업에서만 호출하고, 갱신 결과는 `part_catalog_candidates` 후보로 쌓은 뒤 검증 또는 자동 게시 옵션을 통해 `parts`에 반영합니다.
 
-상품 사진과 공급업체 표시는 `part_external_offers` 캐시를 읽습니다. 저장소 루트 `.env`에 아래 값을 넣고 API를 재빌드한 뒤, 관리자 갱신 API를 호출해 내부 자산과 외부 상품 캐시를 채웁니다. 갱신 작업이 `part_external_offers.low_price`를 저장하면 같은 값을 `parts.price`와 `price_snapshots`에도 반영하므로, 사용자 화면의 가격/정렬/필터는 마지막으로 저장된 네이버 검색 가격 기준으로 동작합니다.
+상품 사진과 공급업체 표시는 `part_external_offers` 캐시를 읽습니다. 저장소 루트 `.env`에 아래 값을 넣고 API를 재빌드한 뒤, 관리자 갱신 API를 호출해 내부 자산과 외부 상품 캐시를 채웁니다. 갱신 작업이 `part_external_offers.low_price`를 저장하면 같은 값을 `parts.price`와 `price_snapshots`에도 반영하므로, 사용자 화면의 가격/정렬/필터는 마지막으로 저장된 네이버 검색 가격 기준으로 동작합니다. 상품별 가격변동 추이는 `GET /api/parts/{id}/price-history`가 `price_snapshots`를 읽어서 반환합니다.
 
 ```env
 NAVER_SEARCH_CLIENT_ID=...

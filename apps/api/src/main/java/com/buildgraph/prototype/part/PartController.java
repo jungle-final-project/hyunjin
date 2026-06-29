@@ -40,6 +40,16 @@ public class PartController {
         return partQueryService.part(id);
     }
 
+    @GetMapping("/parts/{id}/price-history")
+    Map<String, Object> priceHistory(
+            @PathVariable String id,
+            @RequestParam(value = "days", required = false) Integer days,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "limit", required = false) Integer limit
+    ) {
+        return partQueryService.priceHistory(id, days, source, limit);
+    }
+
     @PostMapping("/admin/parts/external-offers/refresh")
     Map<String, Object> refreshExternalOffers(
             @RequestParam(value = "category", required = false) String category,

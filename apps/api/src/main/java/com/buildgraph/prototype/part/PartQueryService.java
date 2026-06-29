@@ -3,6 +3,7 @@ package com.buildgraph.prototype.part;
 import com.buildgraph.prototype.common.DbValueMapper;
 import com.buildgraph.prototype.common.MockData;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,6 +95,49 @@ public class PartQueryService {
                 .findFirst()
                 .map(this::partMap)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "부품을 찾을 수 없습니다."));
+    }
+
+    public Map<String, Object> priceHistory(String id, Integer days, String source, Integer limit) {
+        Map<String, Object> part = internalPart(id);
+        int safeDays = days == null ? 90 : Math.min(Math.max(days, 1), 3650);
+        int safeLimit = limit == null ? 120 : Math.min(Math.max(limit, 1), 500);
+        String normalizedSource = blankToNull(source);
+        List<Object> params = new ArrayList<>();
+        params.add(part.get("internal_id"));
+        params.add(safeDays);
+        String sourceFilter = "";
+        if (normalizedSource != null) {
+            sourceFilter = " AND ps.source = ?";
+            params.add(normalizedSource);
+        }
+        params.add(safeLimit);
+        List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                        SELECT *
+                        FROM (
+                          SELECT ps.price,
+                                 ps.source,
+                                 ps.collected_at
+                          FROM price_snapshots ps
+                          WHERE ps.part_id = ?
+                            AND ps.collected_at >= now() - (? * interval '1 day')
+                        """ + sourceFilter + """
+                          ORDER BY ps.collected_at DESC, ps.id DESC
+                          LIMIT ?
+                        ) latest_history
+                        ORDER BY collected_at ASC
+                        """, params.toArray())
+                .stream()
+                .map(this::pricePointMap)
+                .toList();
+        return MockData.map(
+                "partId", DbValueMapper.string(part, "id"),
+                "partName", DbValueMapper.string(part, "name"),
+                "currentPrice", DbValueMapper.integer(part, "price"),
+                "days", safeDays,
+                "source", normalizedSource,
+                "items", items,
+                "summary", priceHistorySummary(items, DbValueMapper.integer(part, "price"))
+        );
     }
 
     public Map<String, Object> toolResult(String toolName) {
@@ -190,6 +234,62 @@ public class PartQueryService {
                 "latestPriceSource", DbValueMapper.string(row, "latest_price_source"),
                 "latestPriceCollectedAt", DbValueMapper.timestamp(row, "latest_price_collected_at"),
                 "externalOffer", externalOffer(row)
+        );
+    }
+
+    private Map<String, Object> internalPart(String id) {
+        return jdbcTemplate.queryForList("""
+                        SELECT id AS internal_id,
+                               public_id::text AS id,
+                               name,
+                               price
+                        FROM parts
+                        WHERE public_id = ?::uuid
+                          AND deleted_at IS NULL
+                        """, id)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "부품을 찾을 수 없습니다."));
+    }
+
+    private Map<String, Object> pricePointMap(Map<String, Object> row) {
+        return MockData.map(
+                "price", DbValueMapper.integer(row, "price"),
+                "source", DbValueMapper.string(row, "source"),
+                "collectedAt", DbValueMapper.timestamp(row, "collected_at")
+        );
+    }
+
+    private static Map<String, Object> priceHistorySummary(List<Map<String, Object>> items, Integer currentPrice) {
+        if (items.isEmpty()) {
+            return MockData.map(
+                    "sampleCount", 0,
+                    "currentPrice", currentPrice,
+                    "minPrice", currentPrice,
+                    "maxPrice", currentPrice,
+                    "firstPrice", currentPrice,
+                    "lastPrice", currentPrice,
+                    "changeAmount", 0,
+                    "changeRatePercent", 0.0
+            );
+        }
+        List<Integer> prices = items.stream()
+                .map(item -> (Integer) item.get("price"))
+                .filter(price -> price != null)
+                .toList();
+        Integer firstPrice = prices.get(0);
+        Integer lastPrice = prices.get(prices.size() - 1);
+        int changeAmount = lastPrice - firstPrice;
+        double changeRatePercent = firstPrice == 0 ? 0.0 : Math.round((changeAmount * 10000.0 / firstPrice)) / 100.0;
+        return MockData.map(
+                "sampleCount", prices.size(),
+                "currentPrice", currentPrice,
+                "minPrice", prices.stream().min(Comparator.naturalOrder()).orElse(currentPrice),
+                "maxPrice", prices.stream().max(Comparator.naturalOrder()).orElse(currentPrice),
+                "firstPrice", firstPrice,
+                "lastPrice", lastPrice,
+                "changeAmount", changeAmount,
+                "changeRatePercent", changeRatePercent
         );
     }
 

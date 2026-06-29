@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CategorySidebar, DataTable, MetricCard, Panel, Screen, StatusBadge } from '../../../components/ui';
-import { listParts } from '../partsApi';
+import { getPartPriceHistory, listParts } from '../partsApi';
 import type { PartRow, PartSearchParams } from '../types';
 
 const selfQuoteCategories = [
@@ -92,6 +92,7 @@ export function SelfQuotePage() {
               <div key={part.id} className="rounded border border-slate-200 bg-white p-3 text-xs">
                 <div className="mb-1 font-bold text-slate-900">{part.category}</div>
                 <div className="text-slate-700">{part.name}</div>
+                <PriceTrendBadge partId={part.id} />
                 <div className="mt-2 flex items-center justify-between">
                   <span className="font-bold text-brand-blue">{part.price.toLocaleString()}원</span>
                   <button type="button" aria-label={`${part.name} 견적에서 제거`} onClick={() => removePart(part.id)} className="rounded border border-slate-300 px-2 py-1 font-bold text-slate-600 hover:border-orange-400 hover:text-orange-600">
@@ -131,6 +132,31 @@ function partRows(parts: PartRow[], selectedPartIds: Set<string>, onAddPart: (pa
       </button>
     )
   }));
+}
+
+function PriceTrendBadge({ partId }: { partId: string }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['parts', partId, 'price-history', 'NAVER_SHOPPING_SEARCH'],
+    queryFn: () => getPartPriceHistory(partId, { days: 3650, source: 'NAVER_SHOPPING_SEARCH', limit: 60 })
+  });
+  if (isLoading) {
+    return <div className="mt-2 text-[11px] text-slate-400">가격 기록 확인 중</div>;
+  }
+  if (isError || !data) {
+    return <div className="mt-2 text-[11px] text-slate-400">가격 기록 없음</div>;
+  }
+  const sampleCount = data.summary.sampleCount;
+  if (sampleCount < 2) {
+    return <div className="mt-2 text-[11px] text-slate-500">가격 기록 {sampleCount}개</div>;
+  }
+  const change = data.summary.changeAmount;
+  const tone = change > 0 ? 'text-orange-700' : change < 0 ? 'text-emerald-700' : 'text-slate-500';
+  const sign = change > 0 ? '+' : '';
+  return (
+    <div className={`mt-2 text-[11px] font-bold ${tone}`}>
+      {sampleCount}회 기록 · {sign}{change.toLocaleString()}원 ({sign}{data.summary.changeRatePercent.toFixed(2)}%)
+    </div>
+  );
 }
 
 function PartProductCell({ part }: { part: PartRow }) {
