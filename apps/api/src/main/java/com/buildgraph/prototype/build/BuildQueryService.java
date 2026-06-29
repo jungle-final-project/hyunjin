@@ -318,8 +318,12 @@ public class BuildQueryService {
 
         int estimatedWattage = estimatedWattage(parts);
         int psuCapacity = intAttr(psu, "capacityW", 0);
-        int requiredPower = Math.max(intAttr(gpu, "requiredSystemPowerW", 0), estimatedWattage + 120);
+        int vendorRecommendedPsu = intAttr(gpu, "requiredSystemPowerW", 0);
+        int requiredRatedCapacity = Math.max(vendorRecommendedPsu, estimatedWattage + 120);
         int headroom = psuCapacity - estimatedWattage;
+        int loadPercent = psuCapacity <= 0 ? 100 : (int) Math.round((estimatedWattage * 100.0) / psuCapacity);
+        boolean ratedCapacityPass = psuCapacity >= requiredRatedCapacity && loadPercent <= 85;
+        boolean ratedCapacityWarn = psuCapacity >= estimatedWattage && headroom >= 80;
 
         int gpuLength = intAttr(gpu, "lengthMm", 0);
         int maxGpuLength = intAttr(pcCase, "maxGpuLengthMm", 0);
@@ -333,10 +337,18 @@ public class BuildQueryService {
                         socketMatched && memoryMatched && coolerMatched ? "CPU, 메인보드, RAM, 쿨러 기본 호환성이 맞습니다." : "소켓 또는 메모리 호환성 확인이 필요합니다.",
                         MockData.map("socketMatched", socketMatched, "memoryTypeMatched", memoryMatched, "coolerSocketMatched", coolerMatched)),
                 tool("power",
-                        psuCapacity >= requiredPower ? "PASS" : psuCapacity >= estimatedWattage ? "WARN" : "FAIL",
-                        headroom >= 180 ? "HIGH" : "MEDIUM",
-                        psuCapacity >= requiredPower ? "PSU 용량이 예상 소비전력과 GPU 권장 전력을 충족합니다." : "PSU 여유 전력이 낮아 상위 용량을 검토해야 합니다.",
-                        MockData.map("estimatedWattage", estimatedWattage, "psuCapacityW", psuCapacity, "requiredSystemPowerW", requiredPower, "headroomW", headroom)),
+                        ratedCapacityPass ? "PASS" : ratedCapacityWarn ? "WARN" : "FAIL",
+                        headroom >= 180 && loadPercent <= 80 ? "HIGH" : "MEDIUM",
+                        ratedCapacityPass ? "PSU 정격 출력이 예상 지속 부하와 GPU 권장 정격 파워를 충족합니다." : "PSU 정격 출력 여유가 낮아 상위 용량을 검토해야 합니다.",
+                        MockData.map(
+                                "estimatedContinuousLoadW", estimatedWattage,
+                                "psuRatedCapacityW", psuCapacity,
+                                "vendorRecommendedPsuW", vendorRecommendedPsu,
+                                "requiredRatedCapacityW", requiredRatedCapacity,
+                                "ratedHeadroomW", headroom,
+                                "ratedLoadPercent", loadPercent,
+                                "note", "capacityW는 정격 출력이며 PSU 자체 소비전력이나 피크 부하로 합산하지 않습니다."
+                        )),
                 tool("size",
                         gpuLength <= maxGpuLength && coolerHeight <= maxCoolerHeight ? "PASS" : "WARN",
                         "MEDIUM",
@@ -941,8 +953,39 @@ public class BuildQueryService {
 
     private static int estimatedWattage(List<PartCandidate> parts) {
         return parts.stream()
-                .mapToInt(part -> Math.max(intAttr(part, "wattage", 0), intAttr(part, "tdpW", 0)))
-                .sum() + 120;
+                .mapToInt(BuildQueryService::estimatedPartPowerDraw)
+                .sum() + 60;
+    }
+
+    private static int estimatedPartPowerDraw(PartCandidate part) {
+        if (part == null) {
+            return 0;
+        }
+        return switch (part.category()) {
+            case "CPU" -> Math.max(intAttr(part, "wattage", 0), intAttr(part, "tdpW", 65));
+            case "GPU" -> intAttr(part, "wattage", 0);
+            case "MOTHERBOARD" -> intAttr(part, "wattage", 50);
+            case "RAM" -> intAttr(part, "wattage", 10);
+            case "STORAGE" -> intAttr(part, "wattage", 8);
+            case "COOLER" -> firstPositive(
+                    intAttr(part, "electricalW", 0),
+                    intAttr(part, "pumpW", 0),
+                    intAttr(part, "fanW", 0),
+                    8
+            );
+            case "CASE" -> firstPositive(intAttr(part, "fanW", 0), intAttr(part, "wattage", 0), 10);
+            case "PSU" -> 0;
+            default -> intAttr(part, "wattage", 0);
+        };
+    }
+
+    private static int firstPositive(int... values) {
+        for (int value : values) {
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
     }
 
     private static boolean socketSupported(PartCandidate cooler, String socket) {
