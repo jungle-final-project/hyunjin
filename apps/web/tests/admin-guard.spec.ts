@@ -151,10 +151,11 @@ test('renders admin dashboard with ADMIN role and dashboard API response', async
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        llmQueueP95: '12초',
-        apiP95: '210ms',
-        asOpen: 3,
-        recommendationSuccess: '98%'
+        agentRunning: 1,
+        openTickets: 3,
+        priceJobsRunning: 0,
+        degraded: false,
+        generatedAt: '2026-06-29T10:50:00Z'
       })
     });
   });
@@ -162,10 +163,16 @@ test('renders admin dashboard with ADMIN role and dashboard API response', async
   await page.goto('/admin');
 
   await expect(page.getByRole('heading', { name: '관리자 권한이 필요합니다' })).toBeHidden();
-  await expect(page.locator('main')).toContainText('12초');
-  await expect(page.locator('main')).toContainText('210ms');
+  await expect(page.locator('main')).toContainText('진행 중 Agent');
+  await expect(page.locator('main')).toContainText('미해결 AS');
+  await expect(page.locator('main')).toContainText('실행 중 Price Job');
+  await expect(page.locator('main')).toContainText('운영 상태');
+  await expect(page.locator('main')).toContainText('1건');
   await expect(page.locator('main')).toContainText('3건');
-  await expect(page.locator('main')).toContainText('98%');
+  await expect(page.locator('main')).toContainText('0건');
+  await expect(page.locator('main')).toContainText('정상');
+  await expect(page.locator('main')).toContainText('2026-06-29T10:50:00Z');
+  await expect(page.locator('main')).not.toContainText('undefined');
   expect(authMeAuthorization).toBe('Bearer demo-jwt-admin');
   expect(dashboardCalls).toBe(1);
   expect(dashboardAuthorization).toBe('Bearer demo-jwt-admin');
@@ -193,10 +200,11 @@ test('shows admin dashboard loading state while dashboard API is pending', async
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        llmQueueP95: '12초',
-        apiP95: '210ms',
-        asOpen: 3,
-        recommendationSuccess: '98%'
+        agentRunning: 1,
+        openTickets: 3,
+        priceJobsRunning: 0,
+        degraded: false,
+        generatedAt: '2026-06-29T10:50:00Z'
       })
     });
   });
@@ -207,7 +215,8 @@ test('shows admin dashboard loading state while dashboard API is pending', async
   await expect(page.getByText('운영 지표를 불러오고 있습니다.')).toBeVisible();
 
   releaseDashboard?.();
-  await expect(page.locator('main')).toContainText('12초');
+  await expect(page.locator('main')).toContainText('진행 중 Agent');
+  await expect(page.locator('main')).toContainText('1건');
 });
 
 test('shows admin dashboard error state when dashboard API fails', async ({ page }) => {
