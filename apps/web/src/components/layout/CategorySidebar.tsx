@@ -5,6 +5,21 @@ type CategorySidebarItem = string | {
   value: string;
 };
 
+const categoryRoutes: Record<string, string> = {
+  'AI 추천': '/requirements/new',
+  '셀프 견적': '/self-quote',
+  CPU: '/self-quote?category=CPU',
+  '메인보드': '/self-quote?category=MOTHERBOARD',
+  RAM: '/self-quote?category=RAM',
+  GPU: '/self-quote?category=GPU',
+  SSD: '/self-quote?category=STORAGE',
+  '파워': '/self-quote?category=PSU',
+  '케이스': '/self-quote?category=CASE',
+  '목표가 알림': '/my/quotes',
+  'PC Agent': '/support/new',
+  'AS 접수': '/support/new'
+};
+
 export function CategorySidebar({
   items,
   activeValue,
@@ -38,7 +53,7 @@ export function CategorySidebar({
           }
 
           return (
-            <Link key={label} to={idx === 0 ? '/requirements/new' : idx === 1 ? '/self-quote' : '/'} className="block rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-brand-blue hover:bg-brand-pale">
+            <Link key={label} to={categoryRoutes[label] ?? (idx === 0 ? '/requirements/new' : idx === 1 ? '/self-quote' : '/')} className="block rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-brand-blue hover:bg-brand-pale">
               {label}
             </Link>
           );

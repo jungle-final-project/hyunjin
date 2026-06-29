@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CategorySidebar, DataTable, MetricCard, Panel, Screen, StatusBadge } from '../../../components/ui';
 import { listParts } from '../partsApi';
 import type { PartRow, PartSearchParams } from '../types';
@@ -17,7 +17,8 @@ const selfQuoteCategories = [
 ];
 
 export function SelfQuotePage() {
-  const [category, setCategory] = useState<string>('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [category, setCategory] = useState<string>(() => normalizeCategory(searchParams.get('category')));
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<PartSearchParams['sort']>('category');
   const [selectedParts, setSelectedParts] = useState<PartRow[]>([]);
@@ -28,6 +29,25 @@ export function SelfQuotePage() {
   const parts = data?.items ?? [];
   const selectedTotal = selectedParts.reduce((sum, part) => sum + part.price, 0);
   const selectedPartIds = new Set(selectedParts.map((part) => part.id));
+
+  useEffect(() => {
+    const nextCategory = normalizeCategory(searchParams.get('category'));
+    setCategory((current) => current === nextCategory ? current : nextCategory);
+  }, [searchParams]);
+
+  const selectCategory = (nextCategory: string) => {
+    const normalizedCategory = normalizeCategory(nextCategory);
+    setCategory(normalizedCategory);
+    setSearchParams((current) => {
+      const nextParams = new URLSearchParams(current);
+      if (normalizedCategory) {
+        nextParams.set('category', normalizedCategory);
+      } else {
+        nextParams.delete('category');
+      }
+      return nextParams;
+    });
+  };
 
   const addPart = (part: PartRow) => {
     setSelectedParts((current) => current.some((item) => item.id === part.id) ? current : [...current, part]);
@@ -40,7 +60,7 @@ export function SelfQuotePage() {
   return (
     <Screen>
       <div className="grid grid-cols-[216px_1fr_300px] gap-5">
-        <CategorySidebar items={selfQuoteCategories} activeValue={category} onSelect={setCategory} />
+        <CategorySidebar items={selfQuoteCategories} activeValue={category} onSelect={selectCategory} />
         <Panel title={categoryLabel(category)} subtitle="왼쪽 카테고리를 누르면 내부 부품 DB 후보가 여기에 나열됩니다.">
           <div className="mb-4 grid grid-cols-[1fr_160px_140px] gap-3">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="부품명, 제조사, 사양 검색" className="rounded border border-slate-300 px-3 py-2 text-sm" />
@@ -50,7 +70,7 @@ export function SelfQuotePage() {
               <option value="price_desc">가격 높은순</option>
               <option value="name">이름순</option>
             </select>
-            <button type="button" onClick={() => { setCategory(''); setQuery(''); }} className="rounded border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue">
+            <button type="button" onClick={() => { selectCategory(''); setQuery(''); }} className="rounded border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue">
               전체 보기
             </button>
           </div>
@@ -119,6 +139,10 @@ function categoryLabel(category: string) {
   }
   const item = selfQuoteCategories.find((entry) => entry.value === category);
   return item ? `${item.label} 부품 목록` : '셀프 견적 / 전체 부품 목록';
+}
+
+function normalizeCategory(category: string | null) {
+  return selfQuoteCategories.some((entry) => entry.value === category) ? category ?? '' : '';
 }
 
 function formatScore(score?: number | string) {
