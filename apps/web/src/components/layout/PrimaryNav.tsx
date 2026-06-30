@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 export function PrimaryNav() {
   const nav = [
     ['/', '홈'],
-    ['/requirements/new', 'AI 견적'],
+    // ['/requirements/new', 'AI 견적'],
     ['/self-quote', '셀프 견적'],
     ['/builds/00000000-0000-4000-8000-000000002001', '추천 결과'],
     ['/my/quotes', '목표가 알림'],
