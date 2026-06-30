@@ -30,6 +30,17 @@ test('renders the home command center with primary quote actions', async ({ page
   await expect(main.getByRole('button', { name: '견적 상담 시작' })).toBeVisible();
 });
 
+test('renders bright shopping sections for product discovery', async ({ page }) => {
+  await openHomeAsUser(page);
+  const main = page.getByRole('main');
+
+  await expect(main.getByRole('heading', { name: '오늘의 추천 견적' })).toBeVisible();
+  await expect(main.getByRole('heading', { name: '인기 부품 랭킹' })).toBeVisible();
+  await expect(main.getByText('SALE', { exact: true }).first()).toBeVisible();
+  await expect(main.getByRole('link', { name: 'GPU', exact: true })).toHaveAttribute('href', '/self-quote?category=GPU');
+  await expect(main.getByRole('link', { name: '셀프 견적 전체 보기' })).toHaveAttribute('href', '/self-quote');
+});
+
 test('keeps shared header and navigation destinations unchanged', async ({ page }) => {
   await openHomeAsUser(page);
   const header = page.locator('header');

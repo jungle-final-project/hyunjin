@@ -10,12 +10,16 @@ import {
   FileText,
   GitBranch,
   HardDrive,
+  Heart,
   LifeBuoy,
   Monitor,
   Move,
+  PackageCheck,
   SearchCheck,
   Send,
+  ShoppingCart,
   Sparkles,
+  Star,
   Zap,
   type LucideIcon
 } from 'lucide-react';
@@ -93,6 +97,43 @@ const quickCategories: Array<{ label: string; detail: string; to: string; icon: 
   { label: 'SSD', detail: '프로젝트 저장공간', to: '/self-quote?category=STORAGE', icon: HardDrive },
   { label: '파워', detail: '피크 전력 여유율', to: '/self-quote?category=PSU', icon: Zap },
   { label: '쿨러', detail: '발열/소음 여유', to: '/self-quote?category=COOLER', icon: Activity }
+];
+
+const featuredBuilds: Array<{ name: string; tag: string; price: number; originalPrice: number; spec: string; tone: string; to: string }> = [
+  {
+    name: 'QHD 게이밍 추천팩',
+    tag: 'SALE 12%',
+    price: 1980000,
+    originalPrice: 2250000,
+    spec: 'RTX 5070 · Ryzen 7 · DDR5 32GB',
+    tone: 'from-blue-50 to-white',
+    to: '/builds/00000000-0000-4000-8000-000000002001'
+  },
+  {
+    name: 'AI CUDA 실습팩',
+    tag: 'AI 추천',
+    price: 2480000,
+    originalPrice: 2690000,
+    spec: 'VRAM 우선 · 850W PSU · 2TB SSD',
+    tone: 'from-indigo-50 to-white',
+    to: '/requirements/new'
+  },
+  {
+    name: '저소음 작업팩',
+    tag: '검증 통과',
+    price: 2140000,
+    originalPrice: 2290000,
+    spec: '공랭 듀얼타워 · 흡기형 케이스',
+    tone: 'from-emerald-50 to-white',
+    to: '/builds/00000000-0000-4000-8000-000000002001'
+  }
+];
+
+const popularPartDeals: Array<{ rank: number; label: string; category: string; price: number; sale: string; detail: string; to: string; icon: LucideIcon }> = [
+  { rank: 1, label: 'RTX 5070 QHD 그래픽카드', category: 'GPU', price: 890000, sale: 'SALE', detail: 'QHD 고주사율 후보', to: '/self-quote?category=GPU', icon: Monitor },
+  { rank: 2, label: 'Ryzen 7 작업용 CPU', category: 'CPU', price: 420000, sale: 'BEST', detail: '게임/개발 균형형', to: '/self-quote?category=CPU', icon: Cpu },
+  { rank: 3, label: 'DDR5 32GB 메모리', category: 'RAM', price: 128000, sale: 'LOW', detail: '멀티태스킹 표준', to: '/self-quote?category=RAM', icon: Database },
+  { rank: 4, label: 'ATX 3.1 850W 파워', category: 'PSU', price: 165000, sale: 'PASS', detail: '전력 여유 확보', to: '/self-quote?category=PSU', icon: Zap }
 ];
 
 const verificationStages: Array<{ title: string; detail: string; meta: string; icon: LucideIcon }> = [
@@ -329,65 +370,106 @@ function StarterView({
   onSubmit: (event: FormEvent) => void;
 }) {
   return (
-    <div className="flex min-h-[calc(100vh-210px)] flex-col justify-center py-10">
-      <section className="mx-auto w-full max-w-4xl text-center">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-bold text-brand-blue shadow-sm">
-          <Sparkles size={14} />
-          자연어로 시작하는 검증형 PC 견적
-        </div>
-        <h1 className="break-keep text-3xl font-black leading-tight text-slate-950 sm:text-5xl">
-          어떤 PC 견적이 필요하세요?
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl break-keep text-sm leading-6 text-slate-600 sm:text-base">
-          예산, 게임 해상도, 개발 환경, 선호 브랜드를 편하게 적어주세요. 입력 후 홈 화면에서 추천 카드와 AI 상담바가 함께 업데이트됩니다.
-        </p>
-
-        <form onSubmit={onSubmit} className="mx-auto mt-8 max-w-3xl rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-          <label className="sr-only" htmlFor="home-starter-input">원하는 PC 사양 입력</label>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <textarea
-              id="home-starter-input"
-              aria-label="원하는 PC 사양 입력"
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-              className="min-h-24 flex-1 resize-none rounded-2xl border-0 bg-slate-50 px-4 py-3 text-left text-sm leading-6 text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-blue-100"
-              placeholder="예: 200만원 안에서 QHD 게임과 개발을 같이 할 PC 추천해줘. NVIDIA 선호."
-            />
-            <button
-              type="submit"
-              disabled={!value.trim()}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-brand-blue px-5 text-sm font-black text-white transition hover:bg-[#004f95] disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              견적 상담 시작
-              <ArrowRight size={17} />
-            </button>
+    <div className="space-y-8 pb-10">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="panel overflow-hidden">
+          <div className="border-b border-commerce-line bg-white px-5 py-3 sm:px-7">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-black">
+              <span className="rounded bg-commerce-sale px-2 py-1 text-white">SALE</span>
+              <span className="text-commerce-ink">AI 추천 견적 · 내부 자산 가격 기준</span>
+              <span className="text-slate-400">오늘 업데이트</span>
+            </div>
           </div>
-        </form>
+          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-brand-pale px-3 py-1 text-xs font-black text-brand-blue">
+                <Sparkles size={14} />
+                자연어로 시작하는 PC 쇼핑
+              </div>
+              <h1 className="break-keep text-3xl font-black leading-tight tracking-tight text-commerce-ink sm:text-5xl">
+                어떤 PC 견적이 필요하세요?
+              </h1>
+              <p className="mt-4 max-w-2xl break-keep text-sm leading-6 text-slate-600 sm:text-base">
+                예산, 게임 해상도, 개발 환경, 선호 브랜드를 입력하면 추천 견적과 부품 쇼핑 경로를 바로 정리합니다.
+              </p>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {starterPrompts.map((prompt) => (
-            <button
-              key={prompt.label}
-              type="button"
-              onClick={() => onPromptPick(prompt.value)}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-brand-blue hover:text-brand-blue focus:outline-none focus:ring-4 focus:ring-blue-100"
-            >
-              {prompt.label}
-            </button>
-          ))}
+              <form onSubmit={onSubmit} className="mt-7 rounded-md border-2 border-commerce-ink bg-white p-2 shadow-product">
+                <label className="sr-only" htmlFor="home-starter-input">원하는 PC 사양 입력</label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <textarea
+                    id="home-starter-input"
+                    aria-label="원하는 PC 사양 입력"
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="min-h-24 flex-1 resize-none rounded bg-slate-50 px-4 py-3 text-left text-sm leading-6 text-slate-900 outline-none focus:bg-white focus:ring-4 focus:ring-blue-100"
+                    placeholder="예: 200만원 안에서 QHD 게임과 개발을 같이 할 PC 추천해줘. NVIDIA 선호."
+                  />
+                  <button
+                    type="submit"
+                    disabled={!value.trim()}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded bg-commerce-ink px-5 text-sm font-black text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    견적 상담 시작
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {starterPrompts.map((prompt) => (
+                  <button
+                    key={prompt.label}
+                    type="button"
+                    onClick={() => onPromptPick(prompt.value)}
+                    className="rounded-full border border-commerce-line bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:border-commerce-ink hover:text-commerce-ink focus:outline-none focus:ring-4 focus:ring-blue-100"
+                  >
+                    {prompt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-commerce-line bg-gradient-to-b from-slate-50 to-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-xs font-black text-slate-500">오늘의 추천 견적</div>
+                <span className="rounded bg-commerce-sale px-2 py-1 text-[11px] font-black text-white">12% OFF</span>
+              </div>
+              <div className="grid h-28 place-items-center rounded-md bg-commerce-ink text-white">
+                <ShoppingCart size={34} />
+              </div>
+              <h2 className="mt-4 text-lg font-black text-commerce-ink">QHD 게이밍 추천팩</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-500">RTX 5070 · Ryzen 7 · DDR5 32GB</p>
+              <div className="mt-4 flex items-end gap-2">
+                <span className="text-2xl font-black tracking-tight text-commerce-sale">1,980,000원</span>
+                <span className="pb-1 text-xs font-bold text-slate-400 line-through">2,250,000원</span>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs font-bold text-commerce-green">
+                <PackageCheck size={15} />
+                호환성 통과
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-slate-200 bg-white/80 p-4 text-left shadow-sm">
-          <div className="mb-3 text-xs font-black uppercase text-slate-500">부품 바로가기</div>
-          <div className="grid gap-2 sm:grid-cols-3">
+        <aside className="panel p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-commerce-ink">빠른 쇼핑</h2>
+              <p className="mt-1 text-xs text-slate-500">많이 찾는 부품 카테고리</p>
+            </div>
+            <Link to="/self-quote" aria-label="빠른 쇼핑 전체 보기" className="text-xs font-black text-brand-blue hover:underline">
+              전체 보기
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             {quickCategories.map((item) => (
               <Link
                 key={item.label}
                 aria-label={item.label}
                 to={item.to}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-brand-blue hover:bg-brand-pale focus:outline-none focus:ring-4 focus:ring-blue-100"
+                className="rounded-md border border-commerce-line bg-slate-50 p-3 transition hover:border-commerce-ink hover:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
               >
-                <div className="flex items-center gap-2 text-sm font-black text-slate-950">
+                <div className="flex items-center gap-2 text-sm font-black text-commerce-ink">
                   <item.icon size={16} className="text-brand-blue" />
                   {item.label}
                 </div>
@@ -395,6 +477,69 @@ function StarterView({
               </Link>
             ))}
           </div>
+        </aside>
+      </section>
+
+      <section className="panel p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-commerce-ink">오늘의 추천 견적</h2>
+            <p className="mt-1 text-sm text-slate-500">용도별로 바로 비교하고 상세 견적으로 이동합니다.</p>
+          </div>
+          <Link to="/requirements/new" className="text-sm font-black text-brand-blue hover:underline">AI 견적 더 보기</Link>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {featuredBuilds.map((build) => (
+            <Link key={build.name} to={build.to} className={`group rounded-lg border border-commerce-line bg-gradient-to-br ${build.tone} p-4 transition hover:-translate-y-0.5 hover:border-commerce-ink hover:shadow-product focus:outline-none focus:ring-4 focus:ring-blue-100`}>
+              <div className="mb-4 flex items-center justify-between">
+                <span className="rounded bg-commerce-sale px-2 py-1 text-[11px] font-black text-white">{build.tag}</span>
+                <Heart size={17} className="text-slate-400 group-hover:text-commerce-sale" />
+              </div>
+              <h3 className="text-base font-black text-commerce-ink">{build.name}</h3>
+              <p className="mt-2 min-h-10 text-xs leading-5 text-slate-500">{build.spec}</p>
+              <div className="mt-4 flex flex-wrap items-end gap-2">
+                <span className="text-xl font-black tracking-tight text-commerce-sale">{build.price.toLocaleString()}원</span>
+                <span className="text-xs font-bold text-slate-400 line-through">{build.originalPrice.toLocaleString()}원</span>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-xs font-black text-commerce-green">
+                <PackageCheck size={15} />
+                호환성 통과
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-commerce-ink">인기 부품 랭킹</h2>
+            <p className="mt-1 text-sm text-slate-500">셀프 견적에서 자주 비교하는 내부 자산 카테고리입니다.</p>
+          </div>
+          <Link to="/self-quote" aria-label="셀프 견적 전체 보기" className="text-sm font-black text-brand-blue hover:underline">셀프 견적 전체 보기</Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {popularPartDeals.map((part) => (
+            <Link key={part.label} to={part.to} aria-label={`인기 부품 ${part.rank}번 보기`} className="rounded-lg border border-commerce-line bg-white p-4 transition hover:-translate-y-0.5 hover:border-commerce-ink hover:shadow-product focus:outline-none focus:ring-4 focus:ring-blue-100">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-commerce-ink text-xs font-black text-white">{part.rank}</span>
+                <span className={`rounded px-2 py-1 text-[11px] font-black ${part.sale === 'SALE' ? 'bg-commerce-sale text-white' : 'bg-slate-100 text-slate-700'}`}>{part.sale}</span>
+              </div>
+              <div className="grid h-24 place-items-center rounded-md bg-slate-50 text-brand-blue">
+                <part.icon size={30} />
+              </div>
+              <div className="mt-3 text-xs font-black text-brand-blue">{part.category}</div>
+              <h3 className="mt-1 min-h-10 text-sm font-black leading-5 text-commerce-ink">{part.label}</h3>
+              <p className="mt-1 text-xs text-slate-500">{part.detail}</p>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-lg font-black text-commerce-ink">{part.price.toLocaleString()}원</span>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                  <Star size={12} fill="currentColor" />
+                  인기
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
     </div>
