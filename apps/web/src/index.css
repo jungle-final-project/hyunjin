@@ -44,6 +44,31 @@ background:
 .buildgraph-flow-node {
   overflow: hidden;
   font-family: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.buildgraph-flow-node:hover {
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14) !important;
+}
+
+.buildgraph-node-status-orb {
+  display: block;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+.react-flow__edge.buildgraph-flow-edge .react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.react-flow__edge.buildgraph-flow-edge .react-flow__edge-text {
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .buildgraph-flow-node--focus {

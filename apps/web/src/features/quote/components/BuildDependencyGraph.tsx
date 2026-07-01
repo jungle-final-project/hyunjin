@@ -403,15 +403,20 @@ function toFlowElements(graph?: BuildGraphResolveResponse | null): { nodes: Node
     source: edge.source,
     target: edge.target,
     label: edge.label,
-    type: 'smoothstep',
+    type: 'bezier',
     animated: edge.status !== 'PASS',
+    className: `buildgraph-flow-edge buildgraph-flow-edge--${edge.status.toLowerCase()}`,
+    interactionWidth: 18,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       color: statusColor(edge.status)
     },
     style: {
       stroke: statusColor(edge.status),
-      strokeWidth: edge.status === 'PASS' ? 2 : 3
+      strokeWidth: edge.status === 'PASS' ? 2.5 : 3,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      filter: 'drop-shadow(0 2px 3px rgba(37, 99, 235, 0.16))'
     },
     labelStyle: {
       fill: statusColor(edge.status),
@@ -421,7 +426,9 @@ function toFlowElements(graph?: BuildGraphResolveResponse | null): { nodes: Node
     labelBgStyle: {
       fill: '#ffffff',
       fillOpacity: 0.92
-    }
+    },
+    labelBgPadding: [8, 4],
+    labelBgBorderRadius: 10
   } satisfies Edge));
   return { nodes, edges };
 }
@@ -431,35 +438,43 @@ function nodeLabel(node: BuildGraphResolveResponse['nodes'][number]) {
     ? PART_CATEGORY_LABELS[node.category]
     : node.category;
   return (
-    <div className="min-w-[124px] max-w-[172px]">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-black text-slate-500">{category ?? node.type}</span>
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-black ${statusBadgeTone(node.status)}`}>{statusLabel(node.status)}</span>
+    <div className="buildgraph-node-card flex min-h-[78px] w-[204px] items-center gap-3 px-3 py-2.5">
+      <span className={`buildgraph-node-status-orb ${statusOrbTone(node.status)}`} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="truncate text-[11px] font-black text-slate-500">{category ?? node.type}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${statusBadgeTone(node.status)}`}>{statusLabel(node.status)}</span>
+        </div>
+        <div className="line-clamp-2 text-xs font-black leading-4 text-commerce-ink">{node.label}</div>
       </div>
-      <div className="line-clamp-2 text-xs font-black leading-4 text-commerce-ink">{node.label}</div>
     </div>
   );
 }
 
 function nodeStyle(status: BuildGraphStatus, constraint: boolean) {
   const base = {
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 999,
+    borderWidth: 2,
     borderStyle: 'solid',
     padding: 0,
-    width: 184,
-    boxShadow: '0 10px 26px rgba(15, 23, 42, 0.08)'
+    width: 204,
+    minHeight: 78,
+    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.08)'
   };
   if (constraint) {
     return {
       ...base,
-      background: '#f8fafc',
-      borderColor: status === 'PASS' ? '#cbd5e1' : status === 'WARN' ? '#f59e0b' : '#ef4444'
+      background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+      borderColor: status === 'PASS' ? '#dbeafe' : status === 'WARN' ? '#f59e0b' : '#ef4444'
     };
   }
   return {
     ...base,
-    background: '#ffffff',
+    background: status === 'PASS'
+      ? 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)'
+      : status === 'WARN'
+        ? 'linear-gradient(135deg, #ffffff 0%, #fffbeb 100%)'
+        : 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)',
     borderColor: status === 'PASS' ? '#dbeafe' : status === 'WARN' ? '#f59e0b' : '#ef4444'
   };
 }
@@ -735,6 +750,12 @@ function statusBadgeTone(status: BuildGraphStatus) {
   if (status === 'FAIL') return 'bg-red-100 text-red-700';
   if (status === 'WARN') return 'bg-amber-100 text-amber-700';
   return 'bg-emerald-50 text-emerald-700';
+}
+
+function statusOrbTone(status: BuildGraphStatus) {
+  if (status === 'FAIL') return 'bg-red-500 shadow-[0_0_0_5px_rgba(239,68,68,0.14)]';
+  if (status === 'WARN') return 'bg-amber-500 shadow-[0_0_0_5px_rgba(245,158,11,0.16)]';
+  return 'bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.14)]';
 }
 
 function statusLabel(status: BuildGraphStatus) {
