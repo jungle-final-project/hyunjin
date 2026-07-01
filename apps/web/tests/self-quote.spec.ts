@@ -459,14 +459,15 @@ test('updates quote dependency graph after self quote cart changes', async ({ pa
   expect((graphRequests[graphRequests.length - 1] as { source?: string }).source).toBe('QUOTE_DRAFT_CURRENT');
 
   await page.getByTestId('build-dependency-graph').getByText('RTX 5070', { exact: true }).click();
-  await expect(page.getByTestId('build-dependency-graph')).toContainText('선택한 부품 상세');
-  await expect(page.getByTestId('build-dependency-graph')).toContainText('선택한 그래픽카드');
-  await expect(page.getByTestId('build-dependency-graph')).toContainText('RTX 5070 Ti 그래프 호환 후보');
+  const candidatePanel = page.getByTestId('graph-flow-canvas').getByTestId('graph-node-candidate-panel');
+  await expect(candidatePanel).toContainText('선택한 부품 상세');
+  await expect(candidatePanel).toContainText('선택한 그래픽카드');
+  await expect(candidatePanel).toContainText('RTX 5070 Ti 그래프 호환 후보');
   await expect.poll(() => compatibleCandidateRequests.length).toBe(1);
   expect((compatibleCandidateRequests[0] as { source?: string; category?: string }).source).toBe('QUOTE_DRAFT_CURRENT');
   expect((compatibleCandidateRequests[0] as { category?: string }).category).toBe('GPU');
 
-  await page.getByRole('button', { name: 'RTX 5070 Ti 그래프 호환 후보 담기/교체' }).click();
+  await candidatePanel.getByRole('button', { name: 'RTX 5070 Ti 그래프 호환 후보 담기/교체' }).click();
   await expect.poll(() => candidateApplyRequests.length).toBe(1);
   await expect(page.getByText('RTX 5070 Ti 그래프 호환 후보')).toBeVisible();
 });

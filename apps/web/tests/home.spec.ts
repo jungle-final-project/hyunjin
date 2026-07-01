@@ -617,12 +617,16 @@ test('chatbot uses build-chat API and updates latest home AI recommendations', a
   expect((buildGraphRequests[0] as { source?: string; items?: unknown[] }).source).toBe('AI_BUILD');
   expect((buildGraphRequests[0] as { items?: unknown[] }).items?.length).toBe(8);
   await main.getByTestId('build-dependency-graph').getByText('RTX 5070', { exact: true }).click();
-  await expect(main.getByTestId('build-dependency-graph')).toContainText('선택한 부품 상세');
-  await expect(main.getByTestId('build-dependency-graph')).toContainText('250W · 길이 304mm');
-  await expect(main.getByTestId('build-dependency-graph')).toContainText('호환 후보');
-  await expect(main.getByTestId('build-dependency-graph')).toContainText('RTX 5070 Ti 호환 후보');
-  await expect(main.getByTestId('build-dependency-graph')).toContainText('읽기 전용');
-  await expect(main.getByTestId('build-dependency-graph')).not.toContainText('담기/교체');
+  const graphCanvas = main.getByTestId('graph-flow-canvas');
+  const graphPaneBox = await graphCanvas.locator('.react-flow').boundingBox();
+  expect(graphPaneBox?.height).toBeGreaterThanOrEqual(680);
+  const candidatePanel = graphCanvas.getByTestId('graph-node-candidate-panel');
+  await expect(candidatePanel).toContainText('선택한 부품 상세');
+  await expect(candidatePanel).toContainText('250W · 길이 304mm');
+  await expect(candidatePanel).toContainText('호환 후보');
+  await expect(candidatePanel).toContainText('RTX 5070 Ti 호환 후보');
+  await expect(candidatePanel).toContainText('읽기 전용');
+  await expect(candidatePanel).not.toContainText('담기/교체');
   await expect.poll(() => compatibleCandidateRequests.length).toBe(1);
   expect(compatibleCandidateRequests[0].source).toBe('AI_BUILD');
   expect(compatibleCandidateRequests[0].category).toBe('GPU');
@@ -835,6 +839,8 @@ test('keeps shared header and navigation destinations unchanged', async ({ page 
 
 test('keeps the unified home usable on mobile width', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await mockBuildGraphApi(page);
+  await mockCompatibleCandidatesApi(page);
   await mockAiBuildChatApi(page);
   await openHomeAsUser(page);
   const main = page.getByRole('main');
@@ -844,6 +850,11 @@ test('keeps the unified home usable on mobile width', async ({ page }) => {
   await expect(main.getByRole('tab', { name: '인기상품' })).toBeVisible();
   await page.getByRole('button', { name: 'AI 견적 챗봇 열기' }).click();
   await expect(page.getByTestId('ai-chatbot-panel')).toBeVisible();
+  await page.getByRole('textbox', { name: 'AI 챗봇에게 PC 사양 질문' }).fill('200만원 PC 추천');
+  await page.getByRole('button', { name: '질문 보내기' }).click();
+  await expect(main.getByTestId('build-dependency-graph')).toContainText('견적 관계도');
+  await main.getByTestId('build-dependency-graph').getByText('RTX 5070', { exact: true }).click();
+  await expect(main.getByTestId('graph-flow-canvas').getByTestId('graph-node-candidate-panel')).toContainText('호환 후보');
 
   const hasBodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasBodyOverflow).toBe(false);

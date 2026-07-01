@@ -37,6 +37,7 @@ type BuildDependencyGraphProps = {
     onSelectPart?: (part: PartRow) => void;
   };
 };
+type CandidateContext = NonNullable<BuildDependencyGraphProps['candidateContext']>;
 
 const categoryOrder = ['CPU', 'MOTHERBOARD', 'RAM', 'GPU', 'PSU', 'CASE', 'COOLER', 'STORAGE', 'PRICE'];
 const categoryPositions: Record<string, { x: number; y: number }> = {
@@ -123,33 +124,50 @@ export function BuildDependencyGraph({
         </div>
       ) : (
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-h-[430px] border-b border-commerce-line bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] lg:border-b-0 lg:border-r">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              fitView
-              fitViewOptions={{ padding: 0.22 }}
-              minZoom={0.45}
-              maxZoom={1.35}
-              proOptions={{ hideAttribution: true }}
-              onNodeClick={(_, node: Node) => {
-                setActiveNodeId(String(node.id));
-                setActiveEdge(null);
-                const category = node.data.category;
-                if (typeof category === 'string' && isPartCategory(category)) {
-                  onCategorySelect?.(category);
-                }
-              }}
-              onEdgeClick={(_, edge: Edge) => {
-                const graphEdge = graph.edges.find((item) => item.id === edge.id);
-                setActiveNodeId(null);
-                setActiveEdge(graphEdge ?? null);
-              }}
-            >
-              <Background color="#dbe4f0" gap={18} />
-              <MiniMap pannable zoomable nodeColor={(node) => statusColor(String(node.data.status ?? 'PASS'))} />
-              <Controls showInteractive={false} />
-            </ReactFlow>
+          <div
+            data-testid="graph-flow-canvas"
+            className="relative min-w-0 border-b border-commerce-line bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] lg:border-b-0 lg:border-r"
+          >
+            <div className="h-[430px] lg:h-[680px] xl:h-[720px]">
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                fitView
+                fitViewOptions={{ padding: 0.12 }}
+                minZoom={0.45}
+                maxZoom={1.35}
+                proOptions={{ hideAttribution: true }}
+                onNodeClick={(_, node: Node) => {
+                  setActiveNodeId(String(node.id));
+                  setActiveEdge(null);
+                  const category = node.data.category;
+                  if (typeof category === 'string' && isPartCategory(category)) {
+                    onCategorySelect?.(category);
+                  }
+                }}
+                onEdgeClick={(_, edge: Edge) => {
+                  const graphEdge = graph.edges.find((item) => item.id === edge.id);
+                  setActiveNodeId(null);
+                  setActiveEdge(graphEdge ?? null);
+                }}
+              >
+                <Background color="#dbe4f0" gap={18} />
+                <MiniMap pannable zoomable nodeColor={(node) => statusColor(String(node.data.status ?? 'PASS'))} />
+                <Controls showInteractive={false} />
+              </ReactFlow>
+            </div>
+
+            {activeNode ? (
+              <GraphNodeCandidatePanel
+                activeNode={activeNode}
+                activeNodeCategory={activeNodeCategory}
+                candidateContext={candidateContext}
+                candidates={candidateQuery.data?.items ?? []}
+                isLoading={candidateQuery.isLoading}
+                isError={candidateQuery.isError}
+                rejectedCount={candidateQuery.data?.rejectedCount ?? 0}
+              />
+            ) : null}
           </div>
           <aside className="min-w-0 bg-white p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -160,27 +178,13 @@ export function BuildDependencyGraph({
               </span>
             </div>
 
-            {activeNode ? (
-              <SelectedNodePanel node={activeNode} />
-            ) : (
+            {!activeEdge ? (
               <div className="mb-4 rounded-lg border border-dashed border-commerce-line bg-slate-50 p-3">
-                <div className="text-sm font-black text-commerce-ink">노드를 선택하세요</div>
+                <div className="text-sm font-black text-commerce-ink">관계를 선택하세요</div>
                 <p className="mt-1 break-keep text-xs leading-5 text-slate-500">
-                  부품 노드를 누르면 상세 스펙과 현재 조합 기준 호환 후보를 확인할 수 있습니다.
+                  선을 누르면 두 부품 사이의 제약과 판단 근거를 확인할 수 있습니다.
                 </p>
               </div>
-            )}
-
-            {activeNodeCategory && candidateContext ? (
-              <CompatibleCandidatesPanel
-                candidates={candidateQuery.data?.items ?? []}
-                isLoading={candidateQuery.isLoading}
-                isError={candidateQuery.isError}
-                rejectedCount={candidateQuery.data?.rejectedCount ?? 0}
-                readOnly={Boolean(candidateContext.readOnly)}
-                selectedPartIds={candidateContext.selectedPartIds}
-                onSelectPart={candidateContext.onSelectPart}
-              />
             ) : null}
 
             {activeEdge ? (
@@ -333,6 +337,47 @@ function SelectedNodePanel({ node }: { node: BuildGraphNode }) {
       <div className="mt-1 break-keep text-sm font-black leading-5 text-commerce-ink">{node.label}</div>
       {node.detail ? <p className="mt-2 break-keep text-xs leading-5 text-slate-600">{node.detail}</p> : null}
       {typeof node.price === 'number' ? <div className="mt-2 text-sm font-black text-brand-blue">{node.price.toLocaleString()}원</div> : null}
+    </div>
+  );
+}
+
+function GraphNodeCandidatePanel({
+  activeNode,
+  activeNodeCategory,
+  candidateContext,
+  candidates,
+  isLoading,
+  isError,
+  rejectedCount
+}: {
+  activeNode: BuildGraphNode;
+  activeNodeCategory: PartCategory | null;
+  candidateContext?: CandidateContext;
+  candidates: CompatiblePartCandidate[];
+  isLoading: boolean;
+  isError: boolean;
+  rejectedCount: number;
+}) {
+  return (
+    <div
+      data-testid="graph-node-candidate-panel"
+      className="border-t border-commerce-line bg-white p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.06)] lg:absolute lg:right-4 lg:top-4 lg:z-10 lg:max-h-[calc(100%-2rem)] lg:w-[330px] lg:overflow-y-auto lg:rounded-xl lg:border lg:shadow-2xl"
+    >
+      <SelectedNodePanel node={activeNode} />
+      {activeNodeCategory && candidateContext ? (
+        <>
+          <div className="mb-4 border-t border-dashed border-commerce-line" />
+          <CompatibleCandidatesPanel
+            candidates={candidates}
+            isLoading={isLoading}
+            isError={isError}
+            rejectedCount={rejectedCount}
+            readOnly={Boolean(candidateContext.readOnly)}
+            selectedPartIds={candidateContext.selectedPartIds}
+            onSelectPart={candidateContext.onSelectPart}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
