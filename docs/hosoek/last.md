@@ -5,6 +5,8 @@
 
 - 공통 API Client 완료 : 커밋 807429c
 - dashboard 지표가 실제 도메인 데이터 변화와 맞는지 최종 smoke 완료 : 실제 db 확인
+- CI/OpenAPI: 커밋 12181af
+
 
 기준 문서: 
 ```
@@ -66,7 +68,7 @@ MVP 완료 기준:
 | AdminShell | 부분완료 | 8개 메뉴와 route는 있으나 owner별 list/detail 정책 공유 필요 | nav label/order/route가 2/3/4번 담당 화면과 충돌 없음 | 5번, 2/3/4번 |
 | AdminDashboard | 완료 | dashboard 지표가 실제 도메인 데이터 변화와 맞는지 최종 smoke | `agentRunning`, `openTickets`, `priceJobsRunning`, `degraded`가 실제 DB 기준 표시됨 | 5번 |
 | Redis/RabbitMQ/Mailpit | smoke 완료 | 실제 기능이 붙으면 connection smoke에서 기능 smoke로 승격 | OAuth code, queue job, email 중 실제 사용 기능 기준 smoke 통과 | 5번, 관련 owner |
-| CI/OpenAPI | 부분완료 | 새 API가 생길 때 `tools/validate_openapi.py` 필수 path/schema에 즉시 반영 | OpenAPI 검증이 누락 API를 잡고 CI에서 실패시킴 | 5번 |
+| CI/OpenAPI | 완료 | 새 API가 생길 때 `tools/validate_openapi.py` 필수 path/schema에 즉시 반영 | OpenAPI 검증이 누락 API를 잡고 CI에서 실패시킴 | 5번 |
 | 최종 E2E | 미완료 | 실제 서버+DB로 MVP 전체 흐름을 한 번에 검증 | 로그인부터 관리자 확인까지 1회 이상 성공하고 결과 문서화 | 전체, 5번 검증 |
 
 ## MVP 이후 기능 구현을 끝내기 위한 작업
@@ -109,3 +111,14 @@ MVP 완료 기준:
 | 3 | 상태 전이/409/ErrorResponse 정리 | 공통 API client 오류 보존은 완료됐고, 도메인별 409/상태 전이 계약을 서버와 화면에서 닫아야 함 |
 | 4 | 가격 알림/AS/관리자 실제 API 연결 | MVP E2E의 후반부를 닫는 작업 |
 | 5 | 최종 E2E와 검증 명령 고정 | 프로젝트 완료 판정을 객관적으로 만들기 위한 마지막 단계 |
+
+| 인프라 | 확장 대상 MVP 기능 | MVP 기능 자체 존재 여부 | 해당 인프라 연동 여부 | 판단 |
+| --- | --- | --- | --- | --- |
+| Redis | Google OAuth one-time code | 계약에는 있음, 구현은 없음 | 미연동 | OAuth를 MVP에 넣으면 Redis 필요 |
+| Redis | LLM/RAG cache, quota | AI/RAG 기능은 있음 | 미연동 | MVP 필수라기보다 성능/제한 확장 |
+| RabbitMQ | AI 구매 상담 queue | 있음 | 미연동 | 확장 가능, 현재는 동기 처리 |
+| RabbitMQ | AS Chat/Agent queue | 있음 | 미연동 | 확장 가능, 현재는 동기/SSE 처리 |
+| RabbitMQ | 가격 수집 job queue | 일부 있음 | 미연동 | 확장 가능, 현재는 DB row/API/스케줄러 중심 |
+| RabbitMQ | 메일 발송 queue | 메일 기능 없음 | 미연동 | 가격 알림 메일 구현 후 가능 |
+| Mailpit | 가격 알림 메일 | 가격 알림 기능은 일부 있음, 메일 발송 없음 | 미연동 | MVP에 가격 알림 이메일을 넣으면 필요 |
+| Mailpit | 회원가입 인증 메일 | 현재 계약/구현 없음 | 미연동 | MVP 이후 또는 팀 결정 필요 |
