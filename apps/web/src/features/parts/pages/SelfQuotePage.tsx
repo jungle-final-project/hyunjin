@@ -3,7 +3,7 @@ import { AlertTriangle, Bell, CheckCircle2, PackageCheck, Search, ShoppingCart, 
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { CategorySidebar, DataTable, MetricCard, Panel, Screen } from '../../../components/ui';
-import { getToken } from '../../../lib/api';
+import { AUTH_CHANGED_EVENT, getToken } from '../../../lib/api';
 import { AiBuildAssistant } from '../../quote/components/AiBuildAssistant';
 import {
   AI_SELECTED_BUILD_CHANGED_EVENT,
@@ -141,9 +141,11 @@ export function SelfQuotePage() {
   useEffect(() => {
     const syncSelectedBuild = () => setAiBuild(readSelectedAiBuild());
     window.addEventListener(AI_SELECTED_BUILD_CHANGED_EVENT, syncSelectedBuild);
+    window.addEventListener(AUTH_CHANGED_EVENT, syncSelectedBuild);
     window.addEventListener('storage', syncSelectedBuild);
     return () => {
       window.removeEventListener(AI_SELECTED_BUILD_CHANGED_EVENT, syncSelectedBuild);
+      window.removeEventListener(AUTH_CHANGED_EVENT, syncSelectedBuild);
       window.removeEventListener('storage', syncSelectedBuild);
     };
   }, []);
@@ -441,8 +443,8 @@ function partRows(parts: PartRow[], selectedPartIds: Set<string>, onAddPart: (pa
 
 function PriceTrendBadge({ partId }: { partId: string }) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['parts', partId, 'price-history', 'NAVER_SHOPPING_SEARCH'],
-    queryFn: () => getPartPriceHistory(partId, { days: 3650, source: 'NAVER_SHOPPING_SEARCH', limit: 60 })
+    queryKey: ['parts', partId, 'price-history', 'all-sources'],
+    queryFn: () => getPartPriceHistory(partId, { days: 3650, limit: 60 })
   });
   if (isLoading) {
     return <div className="mt-2 text-[11px] text-slate-400">가격 기록 확인 중</div>;
