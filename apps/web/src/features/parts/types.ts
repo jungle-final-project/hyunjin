@@ -22,6 +22,14 @@ export type PartRow = {
     refreshedAt?: string | null;
   } | null;
   score?: number;
+  compatibility?: PartCompatibility | null;
+};
+
+export type PartCompatibility = {
+  status: 'PASS' | 'WARN' | 'FAIL';
+  statusLabel: string;
+  summary: string;
+  checkedTools: string[];
 };
 
 export type PartPage = {
@@ -40,7 +48,8 @@ export type PartSearchParams = {
   maxPrice?: number;
   page?: number;
   size?: number;
-  sort?: 'category' | 'price_asc' | 'price_desc' | 'name';
+  sort?: 'category' | 'price_asc' | 'price_desc' | 'name' | 'compatibility';
+  compatibilitySource?: 'QUOTE_DRAFT_CURRENT';
 };
 
 export type CompatiblePartCandidateRequest = {

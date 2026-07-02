@@ -318,6 +318,186 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
   await expect(page.getByText('왼쪽 목록에서 부품을 담으면 이곳에 내 견적이 쌓입니다.')).toBeVisible();
 });
 
+test('shows compatibility status column and compatibility sort on selected self quote category', async ({ page }) => {
+  const partsRequests: Array<{ category: string; sort: string | null; compatibilitySource: string | null }> = [];
+
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+  });
+
+  await page.route('**/api/quote-drafts/current**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'draft-compatibility-list',
+        status: 'ACTIVE',
+        name: '셀프 견적',
+        items: [
+          {
+            id: 'draft-item-cpu',
+            partId: 'part-cpu-selected',
+            category: 'CPU',
+            name: 'Ryzen 7 기준 CPU',
+            manufacturer: 'AMD',
+            quantity: 1,
+            unitPriceAtAdd: 420000,
+            currentPrice: 420000,
+            lineTotal: 420000,
+            attributes: {}
+          }
+        ],
+        totalPrice: 420000,
+        itemCount: 1
+      })
+    });
+  });
+
+  await page.route('**/api/parts**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes('/price-history')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          partId: 'part-cpu-selected',
+          partName: 'Ryzen 7 기준 CPU',
+          currentPrice: 420000,
+          days: 3650,
+          source: 'NAVER_SHOPPING_SEARCH',
+          items: [
+            { price: 420000, source: 'NAVER_SHOPPING_SEARCH', collectedAt: '2026-06-29T00:00:00Z' }
+          ],
+          summary: {
+            sampleCount: 1,
+            currentPrice: 420000,
+            minPrice: 420000,
+            maxPrice: 420000,
+            firstPrice: 420000,
+            lastPrice: 420000,
+            changeAmount: 0,
+            changeRatePercent: 0
+          }
+        })
+      });
+      return;
+    }
+    const category = url.searchParams.get('category') ?? '';
+    partsRequests.push({
+      category,
+      sort: url.searchParams.get('sort'),
+      compatibilitySource: url.searchParams.get('compatibilitySource')
+    });
+
+    const items = category === 'MOTHERBOARD'
+      ? [
+          {
+            id: 'board-pass',
+            category: 'MOTHERBOARD',
+            name: 'B650 호환 보드',
+            manufacturer: 'ASUS',
+            price: 240000,
+            status: 'ACTIVE',
+            attributes: {},
+            compatibility: {
+              status: 'PASS',
+              statusLabel: '호환됨',
+              summary: '현재 CPU 기준 소켓이 일치합니다.',
+              checkedTools: ['compatibility']
+            }
+          },
+          {
+            id: 'board-warn',
+            category: 'MOTHERBOARD',
+            name: 'B650 간섭 주의 보드',
+            manufacturer: 'MSI',
+            price: 220000,
+            status: 'ACTIVE',
+            attributes: {},
+            compatibility: {
+              status: 'WARN',
+              statusLabel: '간섭 주의',
+              summary: '메모리 슬롯 간섭 가능성이 있습니다.',
+              checkedTools: ['compatibility']
+            }
+          },
+          {
+            id: 'board-fail',
+            category: 'MOTHERBOARD',
+            name: 'Z790 안맞는 보드',
+            manufacturer: 'GIGABYTE',
+            price: 260000,
+            status: 'ACTIVE',
+            attributes: {},
+            compatibility: {
+              status: 'FAIL',
+              statusLabel: '안 맞음',
+              summary: '현재 CPU와 소켓이 맞지 않습니다.',
+              checkedTools: ['compatibility']
+            }
+          }
+        ]
+      : [
+          {
+            id: 'part-cpu-selected',
+            category: 'CPU',
+            name: 'Ryzen 7 기준 CPU',
+            manufacturer: 'AMD',
+            price: 420000,
+            status: 'ACTIVE',
+            attributes: {}
+          }
+        ];
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items,
+        page: 0,
+        size: 20,
+        total: items.length
+      })
+    });
+  });
+
+  await page.goto('/self-quote');
+
+  const sortSelect = page.locator('select[aria-label="정렬 기준"]');
+  await expect(page.getByText('셀프 견적 / 전체 부품 목록')).toBeVisible();
+  await expect(sortSelect).not.toContainText('호환성순');
+
+  await page.goto('/self-quote?category=MOTHERBOARD');
+
+  const categorySortSelect = page.locator('select[aria-label="정렬 기준"]');
+  await expect(page.getByText('메인보드 부품 목록')).toBeVisible();
+  await expect(categorySortSelect).toHaveValue('compatibility');
+  await expect(page.getByRole('columnheader', { name: /compatibility/i })).toBeVisible();
+  await expect(page.getByText('B650 호환 보드')).toBeVisible();
+
+  const rows = page.locator('tbody tr');
+  await expect(rows.nth(0)).toContainText('B650 호환 보드');
+  await expect(rows.nth(0)).toContainText('호환됨');
+  await expect(rows.nth(1)).toContainText('B650 간섭 주의 보드');
+  await expect(rows.nth(1)).toContainText('간섭 주의');
+  await expect(rows.nth(2)).toContainText('Z790 안맞는 보드');
+  await expect(rows.nth(2)).toContainText('안 맞음');
+
+  expect(partsRequests).toContainEqual({
+    category: 'MOTHERBOARD',
+    sort: 'compatibility',
+    compatibilitySource: 'QUOTE_DRAFT_CURRENT'
+  });
+
+  await categorySortSelect.selectOption('price_asc');
+  await expect(categorySortSelect).toHaveValue('price_asc');
+  expect(partsRequests).toContainEqual({
+    category: 'MOTHERBOARD',
+    sort: 'price_asc',
+    compatibilitySource: 'QUOTE_DRAFT_CURRENT'
+  });
+});
+
 test('keeps table and graph frames while first category switch is fetching', async ({ page }) => {
   let releaseMotherboardParts: () => void = () => {};
   let releaseMotherboardGraph: () => void = () => {};
@@ -1336,15 +1516,11 @@ test('shows current quote total savings compared with selected AI build prices o
   const aiPanel = page.getByTestId('ai-selected-build-panel');
   const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
   const changeSummary = cartPanel.getByTestId('quote-price-change-summary');
-  const changeList = cartPanel.getByTestId('quote-price-change-list');
 
   await expect(aiPanel.getByTestId('ai-selected-build-current-total')).toHaveText('1,260,000원');
   await expect(aiPanel.getByText('현재 저장가 기준')).toBeVisible();
   await expect(changeSummary).toContainText('AI 추천 시점 대비 50,000원 절감 (-3.8%)');
-  await expect(changeList).toContainText('RTX 가격 비교 GPU');
-  await expect(changeList).toContainText('추천가 890,000원 → 현재가 850,000원 · 40,000원 절감 (-4.5%)');
-  await expect(changeList).toContainText('Ryzen 가격 비교 CPU');
-  await expect(changeList).toContainText('추천가 420,000원 → 현재가 410,000원 · 10,000원 절감 (-2.4%)');
+  await expect(cartPanel.getByTestId('quote-price-change-list')).toHaveCount(0);
   await expect(aiPanel.getByText(/절감|상승|변동 없음/)).toHaveCount(0);
 });
 
@@ -1451,7 +1627,7 @@ test('shows current quote total increase compared with selected AI build prices'
 
   const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
   await expect(cartPanel.getByTestId('quote-price-change-summary')).toContainText('AI 추천 시점 대비 80,000원 상승 (+8.0%)');
-  await expect(cartPanel.getByTestId('quote-price-change-list')).toContainText('추천가 1,000,000원 → 현재가 1,080,000원 · 80,000원 상승 (+8.0%)');
+  await expect(cartPanel.getByTestId('quote-price-change-list')).toHaveCount(0);
 });
 
 test('shows no price movement when selected AI build and current quote prices match', async ({ page }) => {
@@ -1557,7 +1733,7 @@ test('shows no price movement when selected AI build and current quote prices ma
 
   const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
   await expect(cartPanel.getByTestId('quote-price-change-summary')).toContainText('AI 추천 시점 대비 변동 없음');
-  await expect(cartPanel.getByTestId('quote-price-change-list')).toContainText('부품별 가격 변동 없음');
+  await expect(cartPanel.getByTestId('quote-price-change-list')).toHaveCount(0);
 });
 
 test('paginates self quote assets in 20 item pages', async ({ page }) => {

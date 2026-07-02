@@ -3,9 +3,11 @@ package com.buildgraph.prototype.part;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -139,5 +141,73 @@ class PartControllerTest {
 
         verify(currentUserService).requireUser(USER_TOKEN);
         verify(compatibleCandidateService).compatibleCandidates(eq(user), anyMap());
+    }
+
+    @Test
+    void partsPassCompatibilitySourceToQueryService() throws Exception {
+        CurrentUserService.CurrentUser user = new CurrentUserService.CurrentUser(
+                1004L,
+                "00000000-0000-4000-8000-000000001004",
+                "user@example.com",
+                "Demo User",
+                "USER",
+                "2026-06-30T00:00:00Z"
+        );
+        when(currentUserService.requireUser(USER_TOKEN)).thenReturn(user);
+        when(partQueryService.parts(
+                eq(user),
+                eq("GPU"),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("compatibility"),
+                eq("QUOTE_DRAFT_CURRENT")
+        )).thenReturn(Map.of(
+                "items", java.util.List.of(Map.of(
+                        "id", "part-gpu-pass",
+                        "category", "GPU",
+                        "name", "RTX 5070 Ti",
+                        "price", 990000,
+                        "status", "ACTIVE",
+                        "attributes", Map.of(),
+                        "compatibility", Map.of(
+                                "status", "PASS",
+                                "statusLabel", "호환됨",
+                                "summary", "현재 조합 기준 호환 가능합니다.",
+                                "checkedTools", java.util.List.of("power", "size", "performance")
+                        )
+                )),
+                "page", 0,
+                "size", 20,
+                "total", 1
+        ));
+
+        mockMvc.perform(get("/api/parts")
+                        .header("Authorization", USER_TOKEN)
+                        .param("category", "GPU")
+                        .param("sort", "compatibility")
+                        .param("compatibilitySource", "QUOTE_DRAFT_CURRENT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].compatibility.status").value("PASS"))
+                .andExpect(jsonPath("$.items[0].compatibility.statusLabel").value("호환됨"));
+
+        verify(currentUserService).requireUser(USER_TOKEN);
+        verify(partQueryService).parts(
+                eq(user),
+                eq("GPU"),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("compatibility"),
+                eq("QUOTE_DRAFT_CURRENT")
+        );
     }
 }

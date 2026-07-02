@@ -45,10 +45,11 @@ public class PartController {
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size,
             @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "compatibilitySource", required = false) String compatibilitySource,
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        currentUserService.requireUser(authorization);
-        return partQueryService.parts(category, query, manufacturer, status, minPrice, maxPrice, page, size, sort);
+        CurrentUserService.CurrentUser user = currentUserService.requireUser(authorization);
+        return partQueryService.parts(user, category, query, manufacturer, status, minPrice, maxPrice, page, size, sort, compatibilitySource);
     }
 
     @GetMapping("/parts/{id}")

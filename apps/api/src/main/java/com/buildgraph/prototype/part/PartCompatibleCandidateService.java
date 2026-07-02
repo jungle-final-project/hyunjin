@@ -65,6 +65,32 @@ public class PartCompatibleCandidateService {
         );
     }
 
+    public List<Map<String, Object>> partRowsWithCompatibility(
+            CurrentUserService.CurrentUser user,
+            String source,
+            String category,
+            List<Map<String, Object>> rows
+    ) {
+        String normalizedSource = firstText(text(source), "QUOTE_DRAFT_CURRENT").toUpperCase(Locale.ROOT);
+        String normalizedCategory = normalizeCategory(category);
+        if (normalizedCategory == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 부품 카테고리입니다.");
+        }
+        List<ToolBuildPart> baseParts = switch (normalizedSource) {
+            case "QUOTE_DRAFT_CURRENT" -> currentQuoteDraftParts(user);
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 compatibilitySource입니다.");
+        };
+        List<String> checkedTools = checkedTools(normalizedCategory);
+        return rows.stream()
+                .map(row -> {
+                    CandidateEvaluation evaluation = evaluate(baseParts, new CandidatePart(toolPart(row), partMap(row)), normalizedCategory, checkedTools);
+                    Map<String, Object> part = new LinkedHashMap<>(evaluation.partMap());
+                    part.put("compatibility", evaluation.partListCompatibility());
+                    return part;
+                })
+                .toList();
+    }
+
     private List<ToolBuildPart> aiBuildParts(Map<String, Object> body) {
         List<Map<String, Object>> items = objectList(body.get("items"));
         if (items.isEmpty()) {
@@ -341,6 +367,16 @@ public class PartCompatibleCandidateService {
         return "여유 있음";
     }
 
+    private static String partListStatusLabel(String status) {
+        if ("FAIL".equals(status)) {
+            return "안 맞음";
+        }
+        if ("WARN".equals(status)) {
+            return "간섭 주의";
+        }
+        return "호환됨";
+    }
+
     private static Long longValue(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -417,6 +453,15 @@ public class PartCompatibleCandidateService {
                     "part", partMap,
                     "status", status,
                     "statusLabel", statusLabel(status),
+                    "summary", summary,
+                    "checkedTools", checkedTools
+            );
+        }
+
+        private Map<String, Object> partListCompatibility() {
+            return MockData.map(
+                    "status", status,
+                    "statusLabel", partListStatusLabel(status),
                     "summary", summary,
                     "checkedTools", checkedTools
             );

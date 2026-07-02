@@ -39,15 +39,17 @@ export function SelfQuotePage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [category, setCategory] = useState<string>(() => normalizeCategory(searchParams.get('category')));
+  const initialCategory = normalizeCategory(searchParams.get('category'));
+  const [category, setCategory] = useState<string>(() => initialCategory);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<PartSearchParams['sort']>('category');
+  const [sort, setSort] = useState<PartSearchParams['sort']>(() => defaultSortForCategory(initialCategory));
   const [page, setPage] = useState(() => normalizePage(searchParams.get('page')));
   const [aiBuild, setAiBuild] = useState<AiSelectedBuild | null>(() => readSelectedAiBuild());
   const hasToken = Boolean(getToken());
+  const compatibilitySource = category ? 'QUOTE_DRAFT_CURRENT' : undefined;
   const { data, isError, isFetching, isLoading, isPlaceholderData } = useQuery({
-    queryKey: ['parts', 'self-quote', category, query, sort, page],
-    queryFn: () => listParts({ category, q: query, page, size: PAGE_SIZE, sort }),
+    queryKey: ['parts', 'self-quote', category, query, sort, compatibilitySource, page],
+    queryFn: () => listParts({ category, q: query, page, size: PAGE_SIZE, sort, compatibilitySource }),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true
@@ -96,7 +98,13 @@ export function SelfQuotePage() {
 
   useEffect(() => {
     const nextCategory = normalizeCategory(searchParams.get('category'));
-    setCategory((current) => current === nextCategory ? current : nextCategory);
+    setCategory((current) => {
+      if (current === nextCategory) {
+        return current;
+      }
+      setSort(defaultSortForCategory(nextCategory));
+      return nextCategory;
+    });
     const nextPage = normalizePage(searchParams.get('page'));
     setPage((current) => current === nextPage ? current : nextPage);
   }, [searchParams]);
@@ -104,6 +112,7 @@ export function SelfQuotePage() {
   const selectCategory = (nextCategory: string) => {
     const normalizedCategory = normalizeCategory(nextCategory);
     setCategory(normalizedCategory);
+    setSort(defaultSortForCategory(normalizedCategory));
     setPage(0);
     setSearchParams((current) => {
       const nextParams = new URLSearchParams(current);
@@ -277,7 +286,7 @@ export function SelfQuotePage() {
                   <SlidersHorizontal size={17} className="text-slate-400" />
                   <span className="sr-only">정렬 기준</span>
                   <select aria-label="정렬 기준" value={sort} onChange={(event) => updateSort(event.target.value as PartSearchParams['sort'])} className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-700 outline-none">
-                    <option value="category">카테고리순</option>
+                    {category ? <option value="compatibility">호환성순</option> : <option value="category">카테고리순</option>}
                     <option value="price_asc">가격 낮은순</option>
                     <option value="price_desc">가격 높은순</option>
                     <option value="name">이름순</option>
@@ -287,7 +296,7 @@ export function SelfQuotePage() {
                   전체 보기
                 </button>
               </div>
-              {showPartsSkeleton ? <PartsTableSkeleton /> : null}
+              {showPartsSkeleton ? <PartsTableSkeleton showCompatibility={Boolean(category)} /> : null}
               {isError && !data ? <div className="rounded-md border border-orange-200 bg-orange-50 p-5 text-sm text-orange-700">부품 목록 API를 불러오지 못했습니다.</div> : null}
               {!showPartsSkeleton && data ? (
                 <div className="relative">
@@ -297,7 +306,7 @@ export function SelfQuotePage() {
                       <span>{total.toLocaleString()}개 중 {fromIndex.toLocaleString()}-{toIndex.toLocaleString()}개 표시</span>
                       <span>페이지 {safePage + 1} / {totalPages}</span>
                     </div>
-                    <DataTable columns={['product', 'manufacturer', 'supplier', 'price', 'action']} rows={partRows(parts, selectedPartIds, addPart)} />
+                    <DataTable columns={partTableColumns(Boolean(category))} rows={partRows(parts, selectedPartIds, addPart, Boolean(category))} />
                     <div className="mt-4 flex items-center justify-end gap-2">
                       <button
                         type="button"
@@ -546,8 +555,7 @@ function QuoteTotalCard({ totalPrice, comparison }: { totalPrice: number; compar
       <div className="mt-2 text-2xl font-black tracking-tight text-brand-blue">{totalPrice.toLocaleString()}원</div>
       {comparison ? (
         <div className="mt-3 border-t border-slate-100 pt-3">
-          
-
+         
         </div>
       ) : null}
     </div>
@@ -617,14 +625,6 @@ function priceChangeSummaryText(comparison: QuotePriceComparison) {
   return `AI 추천 시점 대비 ${Math.abs(comparison.delta).toLocaleString()}원 ${label} (${formatSignedPercent(comparison.ratePercent)})`;
 }
 
-function priceChangeDetailText(row: QuotePriceChangeRow) {
-  if (row.direction === 'same') {
-    return '변동 없음';
-  }
-  const label = row.direction === 'down' ? '절감' : '상승';
-  return `${Math.abs(row.delta).toLocaleString()}원 ${label} (${formatSignedPercent(row.ratePercent)})`;
-}
-
 function formatSignedPercent(value: number) {
   if (value === 0) {
     return '0.0%';
@@ -643,18 +643,28 @@ function priceChangeSummaryClassName(direction: QuotePriceChangeDirection) {
   return 'border-slate-200 bg-slate-50 text-slate-500';
 }
 
-function priceChangeRowClassName(direction: QuotePriceChangeDirection) {
-  if (direction === 'down') {
-    return 'font-bold text-emerald-700';
+function compatibilityBadgeClassName(status: NonNullable<PartRow['compatibility']>['status']) {
+  if (status === 'PASS') {
+    return 'border-emerald-100 bg-emerald-50 text-emerald-700';
   }
-  if (direction === 'up') {
-    return 'font-bold text-orange-700';
+  if (status === 'WARN') {
+    return 'border-amber-100 bg-amber-50 text-amber-700';
   }
-  return 'font-bold text-slate-500';
+  return 'border-red-100 bg-red-50 text-red-700';
 }
 
-function PartsTableSkeleton() {
-  const columns = ['product', 'manufacturer', 'supplier', 'price', 'action'];
+function compatibilityStatusLabel(status: NonNullable<PartRow['compatibility']>['status']) {
+  if (status === 'PASS') {
+    return '호환됨';
+  }
+  if (status === 'WARN') {
+    return '간섭 주의';
+  }
+  return '안 맞음';
+}
+
+function PartsTableSkeleton({ showCompatibility }: { showCompatibility: boolean }) {
+  const columns = partTableColumns(showCompatibility);
   return (
     <div>
       <div className="mb-3 flex flex-col gap-2 text-xs font-bold text-slate-400 sm:flex-row sm:items-center sm:justify-between">
@@ -689,24 +699,57 @@ function PartsTableSkeleton() {
   );
 }
 
-function partRows(parts: PartRow[], selectedPartIds: Set<string>, onAddPart: (part: PartRow) => void) {
-  return parts.map((part) => ({
-    product: <PartProductCell part={part} />,
-    manufacturer: part.manufacturer ?? '-',
-    supplier: <SupplierCell part={part} />,
-    price: `${part.price.toLocaleString()}원`,
-    action: (
-      <button
-        type="button"
-        aria-label={`${part.name} 견적 담기`}
-        disabled={selectedPartIds.has(part.id)}
-        onClick={() => onAddPart(part)}
-        className="rounded-md bg-commerce-ink px-3 py-2 text-xs font-black text-white transition hover:bg-slate-700 disabled:bg-slate-300"
-      >
-        {selectedPartIds.has(part.id) ? '담김' : '담기'}
-      </button>
-    )
-  }));
+function partTableColumns(showCompatibility: boolean) {
+  return showCompatibility
+    ? ['product', 'manufacturer', 'supplier', 'price', 'compatibility', 'action']
+    : ['product', 'manufacturer', 'supplier', 'price', 'action'];
+}
+
+function partRows(parts: PartRow[], selectedPartIds: Set<string>, onAddPart: (part: PartRow) => void, showCompatibility: boolean) {
+  return parts.map((part) => {
+    const row = {
+      product: <PartProductCell part={part} />,
+      manufacturer: part.manufacturer ?? '-',
+      supplier: <SupplierCell part={part} />,
+      price: `${part.price.toLocaleString()}원`,
+      action: (
+        <button
+          type="button"
+          aria-label={`${part.name} 견적 담기`}
+          disabled={selectedPartIds.has(part.id)}
+          onClick={() => onAddPart(part)}
+          className="rounded-md bg-commerce-ink px-3 py-2 text-xs font-black text-white transition hover:bg-slate-700 disabled:bg-slate-300"
+        >
+          {selectedPartIds.has(part.id) ? '담김' : '담기'}
+        </button>
+      )
+    };
+    return showCompatibility
+      ? {
+          ...row,
+          compatibility: <CompatibilityStatusCell part={part} />
+        }
+      : row;
+  });
+}
+
+function CompatibilityStatusCell({ part }: { part: PartRow }) {
+  const compatibility = part.compatibility;
+  if (!compatibility) {
+    return (
+      <div className="min-w-[112px]">
+        <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-500">평가 중</span>
+      </div>
+    );
+  }
+  return (
+    <div className="min-w-[132px]">
+      <span className={`inline-flex rounded-md border px-2 py-1 text-[11px] font-black ${compatibilityBadgeClassName(compatibility.status)}`}>
+        {compatibility.statusLabel || compatibilityStatusLabel(compatibility.status)}
+      </span>
+      <div className="mt-1 line-clamp-2 max-w-[180px] break-keep text-[11px] leading-4 text-slate-500">{compatibility.summary}</div>
+    </div>
+  );
 }
 
 function PriceTrendBadge({ partId }: { partId: string }) {
@@ -791,6 +834,10 @@ function quoteGraphSignature(items: QuoteDraftItem[]) {
 
 function isPartCategory(category: string): category is PartCategory {
   return Object.keys(PART_CATEGORY_LABELS).includes(category);
+}
+
+function defaultSortForCategory(category: string): PartSearchParams['sort'] {
+  return category ? 'compatibility' : 'category';
 }
 
 function graphToolForCategory(category: PartCategory): BuildGraphFocus['tool'] {
