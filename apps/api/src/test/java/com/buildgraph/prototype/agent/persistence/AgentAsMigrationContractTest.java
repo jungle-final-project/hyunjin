@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AgentAsMigrationContractTest {
-    private static final Path MIGRATION = Path.of("src/main/resources/db/migration/V53__pc_agent_gold_mode_contract.sql");
+    private static final Path MIGRATION = Path.of("src/main/resources/db/migration/V56__pc_agent_gold_mode_contract.sql");
 
     @Test
     void migrationCreatesGoldModeAgentTablesInParentChildOrder() throws Exception {

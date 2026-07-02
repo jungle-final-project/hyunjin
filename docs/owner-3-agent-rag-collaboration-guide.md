@@ -212,11 +212,25 @@ AGENT_RUNNER_MODE=llm
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-5.5
 OPENAI_REASONING_EFFORT=medium
-AS_CHAT_DEFAULT_PROFILE=AS_CHAT_FAST
+RAG_VECTOR_ENABLED=true
+RAG_VECTOR_REQUIREMENT_PARSE_ENABLED=true
+RAG_VECTOR_BUILD_RECOMMEND_ENABLED=true
+RAG_VECTOR_AS_ANALYZE_ENABLED=true
+RAG_VECTOR_PUBLIC_SEARCH_ENABLED=true
+AS_CHAT_DEFAULT_PROFILE=AS_CHAT_54_MINI_FAST
 AS_CHAT_FAST_MODEL=gpt-5.5
 AS_CHAT_FAST_REASONING_EFFORT=low
 AS_CHAT_FAST_RAG_TOP_K=2
 AS_CHAT_FAST_MAX_OUTPUT_TOKENS=900
+AS_CHAT_54_MINI_FAST_MODEL=gpt-5.4-mini
+AS_CHAT_54_MINI_FAST_REASONING_EFFORT=low
+AS_CHAT_54_MINI_FAST_RAG_TOP_K=2
+AS_CHAT_54_MINI_FAST_MAX_OUTPUT_TOKENS=850
+BUILD_CHAT_DEFAULT_PROFILE=BUILD_CHAT_54_MINI_FAST
+BUILD_CHAT_54_MINI_FAST_MODEL=gpt-5.4-mini
+BUILD_CHAT_54_MINI_FAST_REASONING_EFFORT=low
+BUILD_CHAT_54_MINI_FAST_RAG_TOP_K=3
+BUILD_CHAT_54_MINI_FAST_MAX_OUTPUT_TOKENS=850
 AS_CHAT_NANO_FAST_MODEL=gpt-5.4-nano
 AS_CHAT_NANO_FAST_REASONING_EFFORT=low
 AS_CHAT_NANO_FAST_RAG_TOP_K=2
@@ -235,12 +249,13 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 
 API 키는 저장소에 커밋하지 않는다. 각자 로컬 `.env`에만 넣는다.
 
-AS Chat은 기본 요청에서 `AS_CHAT_DEFAULT_PROFILE` 하나만 실행한다. OpenAI profile 비교는 `tools/benchmark_as_chat_profiles.py`가 내부 검증용 header `X-BuildGraph-AI-Profile`을 사용해 순차 실행한다. 사용자 화면은 `POST /api/ai/as-chat/stream`을 우선 사용해 `STARTED -> RAG_READY -> TOOLS_READY -> LLM_RUNNING -> DONE` 진행 상태를 표시한다.
+AS Chat은 기본 요청에서 `AS_CHAT_DEFAULT_PROFILE` 하나만 실행한다. OpenAI profile 비교는 `tools/benchmark_as_chat_profiles.py`가 내부 검증용 header `X-BuildGraph-AI-Profile`을 사용해 순차 실행한다. 기본 benchmark 실행은 현재 사용자 기본값인 `AS_CHAT_54_MINI_FAST` 하나만 측정하고, 후보 전체 비교가 필요할 때만 `--profiles`로 명시한다. 사용자 화면은 `POST /api/ai/as-chat/stream`을 우선 사용해 `STARTED -> RAG_READY -> TOOLS_READY -> LLM_RUNNING -> DONE` 진행 상태를 표시한다.
 
 | profile | provider | 목적 | 기본 모델 | reasoning | RAG topK | max output |
 |---|---|---|---|---|---:|---:|
-| `AS_CHAT_FAST` | OpenAI | 기본 사용자 후보 | `gpt-5.5` | `low` | 2 | 900 |
-| `AS_CHAT_NANO_FAST` | OpenAI | 속도 개선 기본값 후보 | `gpt-5.4-nano` | `low` | 2 | 700 |
+| `AS_CHAT_54_MINI_FAST` | OpenAI | 기본 사용자 profile | `gpt-5.4-mini` | `low` | 2 | 850 |
+| `AS_CHAT_FAST` | OpenAI | 이전 기본값 / rollback 후보 | `gpt-5.5` | `low` | 2 | 900 |
+| `AS_CHAT_NANO_FAST` | OpenAI | 실험/실패 추적 profile | `gpt-5.4-nano` | `low` | 2 | 700 |
 | `AS_CHAT_BALANCED` | OpenAI | 고위험/품질 보강 후보 | `gpt-5.5` | `low` | 3 | 1100 |
 | `AS_CHAT_HIGH_QUALITY` | OpenAI | 관리자 검증/고품질 후보 | `gpt-5.5` | `medium` | 5 | 2600 |
 
@@ -260,5 +275,7 @@ LLM mode에서도 외부 담당자가 보는 계약은 바뀌지 않는다.
 - 관리자 Agent/Tool/RAG 상세 화면은 실제 API 응답을 읽는다.
 - `deterministic` runner는 키 없이 같은 흐름을 재현한다.
 - `llm` runner는 RAG evidence와 Tool invocation을 저장한 뒤 OpenAI structured output API로 생성한 summary를 `agent_sessions.summary`에 저장한다.
-- 실제 embedding 검색과 실제 2번 Tool 계산은 아직 각 담당자 구현과 연결해야 한다.
+- RAG vector 검색은 `RAG_VECTOR_ENABLED` 전역값과 `RAG_VECTOR_REQUIREMENT_PARSE_ENABLED`, `RAG_VECTOR_BUILD_RECOMMEND_ENABLED`, `RAG_VECTOR_AS_ANALYZE_ENABLED`, `RAG_VECTOR_PUBLIC_SEARCH_ENABLED` 경로별 override를 따른다. 경로별 기본값은 전역값을 상속한다.
+- 실제 embedding 검색은 OpenAI key와 `rag_evidence.embedding` 백필이 있을 때 동작하고, 실패하거나 꺼져 있으면 keyword fallback을 사용한다.
+- 실제 2번 Tool 계산은 기존 Tool owner 구현을 호출/참조한다.
 - 외부 담당자는 `sessionId`, `toolInvocationIds`, `evidenceIds` 계약을 유지하면 runner 내부 구현 변경에 영향받지 않는다.
