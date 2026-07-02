@@ -317,7 +317,13 @@ paths:
           name: sort
           schema:
             type: string
-            enum: [category, price_asc, price_desc, name]
+            enum: [category, price_asc, price_desc, name, compatibility]
+        - in: query
+          name: compatibilitySource
+          description: 특정 category 조회에서 현재 견적초안 기준 호환성 상태를 PartDto.compatibility에 포함한다. sort=compatibility와 함께 사용할 수 있다.
+          schema:
+            type: string
+            enum: [QUOTE_DRAFT_CURRENT]
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -2016,6 +2022,10 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/PartExternalOfferDto"
+        compatibility:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PartCompatibilityDto"
     PartExternalOfferDto:
       type: object
       properties:
@@ -2040,6 +2050,22 @@ components:
           type: string
           format: date-time
           nullable: true
+    PartCompatibilityDto:
+      type: object
+      required: [status, statusLabel, summary, checkedTools]
+      properties:
+        status:
+          $ref: "#/components/schemas/ToolStatus"
+        statusLabel:
+          type: string
+          enum: [호환됨, 간섭 주의, 안 맞음]
+        summary:
+          type: string
+        checkedTools:
+          type: array
+          items:
+            type: string
+            enum: [compatibility, power, size, performance, price]
     CompatiblePartCandidateRequest:
       type: object
       required: [source, category]

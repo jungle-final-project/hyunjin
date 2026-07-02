@@ -216,7 +216,7 @@ export function BuildDependencyGraph({
             data-testid="graph-flow-canvas"
             className="relative min-w-0 border-b border-commerce-line bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] lg:border-b-0 lg:border-r"
           >
-            <div className="h-[430px] lg:h-[680px] xl:h-[720px]">
+            <div className="h-[430px] lg:h-[680px] xl:h-full">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}

@@ -237,7 +237,7 @@ Google OAuth 정책:
 
 | Method | Path | Auth | Owner | Request 예시 | Response 예시 | 관련 DB table |
 |---|---|---|---|---|---|---|
-| `GET` | `/api/parts` | USER | 2번 | `?category=GPU&q=5070&manufacturer=NVIDIA&status=ACTIVE&minPrice=500000&maxPrice=1300000&page=0&size=20&sort=price_desc` | `{ "items": [{ "id": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "name": "GeForce RTX 5070", "manufacturer": "NVIDIA", "price": 960000, "status": "ACTIVE", "attributes": { "wattage": 250 }, "latestPriceSource": "MANUAL_CURRENT_LINEUP", "externalOffer": { "imageUrl": "https://...", "supplierName": "Naver Store", "offerUrl": "https://...", "lowPrice": 950000, "source": "NAVER_SHOPPING_SEARCH", "refreshedAt": "2026-06-29T10:25:00Z" } }], "page": 0, "size": 20, "total": 1 }` | `parts`, `price_snapshots`, `benchmark_summaries`, `part_external_offers` |
+| `GET` | `/api/parts` | USER | 2번 | `?category=GPU&q=5070&manufacturer=NVIDIA&status=ACTIVE&minPrice=500000&maxPrice=1300000&page=0&size=20&sort=compatibility&compatibilitySource=QUOTE_DRAFT_CURRENT` | `{ "items": [{ "id": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "name": "GeForce RTX 5070", "manufacturer": "NVIDIA", "price": 960000, "status": "ACTIVE", "attributes": { "wattage": 250 }, "compatibility": { "status": "PASS", "statusLabel": "호환됨", "summary": "현재 조합 기준 호환 가능합니다.", "checkedTools": ["power", "size", "performance"] }, "latestPriceSource": "MANUAL_CURRENT_LINEUP", "externalOffer": { "imageUrl": "https://...", "supplierName": "Naver Store", "offerUrl": "https://...", "lowPrice": 950000, "source": "NAVER_SHOPPING_SEARCH", "refreshedAt": "2026-06-29T10:25:00Z" } }], "page": 0, "size": 20, "total": 1 }` | `parts`, `quote_drafts`, `quote_draft_items`, `price_snapshots`, `benchmark_summaries`, `part_external_offers` |
 | `POST` | `/api/parts/compatible-candidates` | USER | 2번 | `{ "source": "AI_BUILD", "category": "GPU", "items": [{ "partId": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "quantity": 1 }], "limit": 5 }` | `{ "category": "GPU", "items": [{ "part": { "id": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "name": "GeForce RTX 5070 Ti", "price": 990000, "status": "ACTIVE", "attributes": {} }, "status": "PASS", "statusLabel": "여유 있음", "summary": "현재 조합 기준 호환 가능합니다.", "checkedTools": ["power", "size", "performance"] }], "rejectedCount": 1, "warnings": [] }` | `parts`, `quote_drafts`, `quote_draft_items`, `benchmark_summaries` |
 | `GET` | `/api/parts/{id}` | USER | 2번 | - | `{ "id": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "name": "GeForce RTX 5070", "manufacturer": "NVIDIA", "price": 960000, "status": "ACTIVE", "attributes": { "wattage": 250, "lengthMm": 304 }, "benchmarkSummary": { "summary": "GPU category-local normalized score 78.0 for gaming_ai_creator. Use as recommendation evidence, not exact FPS or render-time guarantee.", "score": 78.0 }, "latestPriceSource": "MANUAL_CURRENT_LINEUP", "externalOffer": null }` | `parts`, `price_snapshots`, `benchmark_summaries`, `part_external_offers` |
 | `GET` | `/api/parts/{id}/price-history` | USER | 2번 | `?days=3650&source=NAVER_SHOPPING_SEARCH&limit=120` | `{ "partId": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "partName": "GeForce RTX 5070", "currentPrice": 960000, "days": 3650, "source": "NAVER_SHOPPING_SEARCH", "items": [{ "price": 950000, "source": "NAVER_SHOPPING_SEARCH", "collectedAt": "2026-06-29T10:25:00Z" }], "summary": { "sampleCount": 1, "currentPrice": 960000, "minPrice": 950000, "maxPrice": 950000, "changeAmount": 0, "changeRatePercent": 0.0 } }` | `parts`, `price_snapshots` |
@@ -254,7 +254,9 @@ Google OAuth 정책:
 
 `POST /api/admin/price-jobs/run`은 `price_jobs.status IN ('QUEUED', 'RUNNING')`인 row가 하나라도 있으면 새 job을 만들지 않고 `409 CONFLICT_STATE`를 반환한다.
 
-부품 검색 정렬은 `category`, `price_asc`, `price_desc`, `name`만 허용한다. `q`는 `parts.name`, `parts.manufacturer`, `parts.attributes`를 대상으로 검색한다.
+부품 검색 정렬은 `category`, `price_asc`, `price_desc`, `name`, `compatibility`를 허용한다. `compatibility`는 특정 `category`와 `compatibilitySource=QUOTE_DRAFT_CURRENT`가 함께 있을 때만 사용하며, 로그인 사용자의 현재 활성 견적초안 기준으로 `PASS -> WARN -> FAIL`, 가격 낮은순으로 정렬한다. `q`는 `parts.name`, `parts.manufacturer`, `parts.attributes`를 대상으로 검색한다.
+
+`GET /api/parts`에서 `compatibilitySource=QUOTE_DRAFT_CURRENT`와 특정 `category`를 함께 보내면 각 `PartDto`에 선택적 `compatibility` 객체를 포함한다. 전체 카테고리 조회에서는 호환성 컬럼을 붙이지 않는다.
 
 `GET /api/parts`에서 `status`를 생략하면 쇼핑몰 기본 노출 기준인 `ACTIVE`만 반환한다. 구형 seed나 교체 후보 보관용 자산은 `status=INACTIVE` 또는 `status=DISCONTINUED`를 명시해 조회한다.
 
@@ -561,7 +563,12 @@ AS AI Chat 규칙:
 | `PartDto` | `price` | `number` | no | `850000` |
 | `PartDto` | `status` | `string` | no | `ACTIVE` |
 | `PartDto` | `attributes` | `object` | no | `{ "wattage": 200 }` |
+| `PartDto` | `compatibility` | `PartCompatibilityDto` | yes | `{ "status": "PASS", "statusLabel": "호환됨", "summary": "현재 조합 기준 호환 가능합니다.", "checkedTools": ["power"] }` |
 | `PartDto` | `externalOffer` | `object` | yes | `{ "imageUrl": "https://...", "supplierName": "Naver Store", "offerUrl": "https://...", "lowPrice": 950000, "source": "NAVER_SHOPPING_SEARCH", "refreshedAt": "2026-06-29T10:25:00Z" }` |
+| `PartCompatibilityDto` | `status` | `string` | no | `PASS` |
+| `PartCompatibilityDto` | `statusLabel` | `string` | no | `호환됨` |
+| `PartCompatibilityDto` | `summary` | `string` | no | `현재 조합 기준 호환 가능합니다.` |
+| `PartCompatibilityDto` | `checkedTools` | `string[]` | no | `["compatibility"]` |
 | `CompatiblePartCandidateRequest` | `source` | `string` | no | `AI_BUILD` |
 | `CompatiblePartCandidateRequest` | `category` | `string` | no | `GPU` |
 | `CompatiblePartCandidateRequest` | `items` | `AiBuildItemDto[]` | yes | `[{ "partId": "0e9f3b8b-8c83-4d9a-9f7d-1f2b4dfb8a11", "category": "GPU", "quantity": 1 }]` |
