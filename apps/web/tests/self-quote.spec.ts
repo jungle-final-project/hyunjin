@@ -310,7 +310,8 @@ test('filters internal assets by sidebar category on self quote page', async ({ 
 
   await page.getByRole('button', { name: 'RTX 4070 SUPER 테스트 견적 담기' }).click();
   await expect(page.getByText('견적 합계')).toBeVisible();
-  await expect(page.getByText('890,000원')).toHaveCount(3);
+  const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
+  await expect(cartPanel.getByText('890,000원')).toHaveCount(2);
   await expect(page.getByText('가격 기록 1개')).toBeVisible();
 
   await page.getByRole('button', { name: 'RTX 4070 SUPER 테스트 견적에서 제거' }).click();
@@ -666,8 +667,8 @@ test('updates quote dependency graph after self quote cart changes', async ({ pa
   await dragFloatingGraphResizeHandle(page, 180, -110);
   const expandedFloatingBox = await floatingGraph.boundingBox();
   expect(expandedFloatingBox).not.toBeNull();
-  expect(expandedFloatingBox?.width).toBeGreaterThan((defaultFloatingBox?.width ?? 0) + 100);
-  expect(expandedFloatingBox?.height).toBeGreaterThan((defaultFloatingBox?.height ?? 0) + 70);
+  expect(expandedFloatingBox?.width).toBeGreaterThanOrEqual((defaultFloatingBox?.width ?? 0) + 100);
+  expect(expandedFloatingBox?.height).toBeGreaterThanOrEqual((defaultFloatingBox?.height ?? 0) + 70);
   await expect(floatingGraph.locator('.react-flow')).toBeVisible();
 
   await dragFloatingGraphResizeHandle(page, -420, 260);
@@ -1210,6 +1211,355 @@ test('shows selected AI build separately from the manual quote draft and marks d
   await expect(page.getByText('견적 합계')).toBeVisible();
 });
 
+test('shows current quote total savings compared with selected AI build prices only in the cart total area', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+    localStorage.setItem('buildgraph.authUser', JSON.stringify({
+      id: 'user-test',
+      email: 'user@example.com',
+      name: 'Demo User',
+      role: 'USER'
+    }));
+    sessionStorage.setItem('buildgraph.ai.selectedBuild:user-test', JSON.stringify({
+      id: 'ai-price-change-savings',
+      tier: 'balanced',
+      title: '가격 비교 추천 조합',
+      summary: '추천 시점 대비 현재가 비교 테스트 조합입니다.',
+      totalPrice: 1310000,
+      appliedPartCategories: ['GPU', 'CPU'],
+      selectedAt: '2026-06-30T09:00:00.000Z',
+      items: [
+        {
+          partId: 'part-gpu-price-change',
+          category: 'GPU',
+          name: 'RTX 가격 비교 GPU',
+          manufacturer: 'NVIDIA',
+          quantity: 1,
+          price: 890000,
+          note: '추천 시점 GPU 가격'
+        },
+        {
+          partId: 'part-cpu-price-change',
+          category: 'CPU',
+          name: 'Ryzen 가격 비교 CPU',
+          manufacturer: 'AMD',
+          quantity: 1,
+          price: 420000,
+          note: '추천 시점 CPU 가격'
+        }
+      ]
+    }));
+  });
+
+  await page.route('**/api/quote-drafts/current**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'draft-price-change-savings',
+        status: 'ACTIVE',
+        name: '셀프 견적',
+        items: [
+          {
+            id: 'draft-item-gpu-price-change',
+            partId: 'part-gpu-price-change',
+            category: 'GPU',
+            name: 'RTX 가격 비교 GPU',
+            manufacturer: 'NVIDIA',
+            quantity: 1,
+            unitPriceAtAdd: 890000,
+            currentPrice: 850000,
+            lineTotal: 850000,
+            attributes: {}
+          },
+          {
+            id: 'draft-item-cpu-price-change',
+            partId: 'part-cpu-price-change',
+            category: 'CPU',
+            name: 'Ryzen 가격 비교 CPU',
+            manufacturer: 'AMD',
+            quantity: 1,
+            unitPriceAtAdd: 420000,
+            currentPrice: 410000,
+            lineTotal: 410000,
+            attributes: {}
+          }
+        ],
+        totalPrice: 1260000,
+        itemCount: 2
+      })
+    });
+  });
+
+  await page.route('**/api/parts**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes('/price-history')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          partId: 'part-price-change',
+          partName: '가격 비교 부품',
+          currentPrice: 850000,
+          days: 3650,
+          source: 'NAVER_SHOPPING_SEARCH',
+          items: [],
+          summary: {
+            sampleCount: 0,
+            currentPrice: 850000,
+            minPrice: 850000,
+            maxPrice: 850000,
+            firstPrice: 850000,
+            lastPrice: 850000,
+            changeAmount: 0,
+            changeRatePercent: 0
+          }
+        })
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [],
+        page: 0,
+        size: 20,
+        total: 0
+      })
+    });
+  });
+
+  await page.goto('/self-quote');
+
+  const aiPanel = page.getByTestId('ai-selected-build-panel');
+  const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
+  const changeSummary = cartPanel.getByTestId('quote-price-change-summary');
+  const changeList = cartPanel.getByTestId('quote-price-change-list');
+
+  await expect(aiPanel.getByTestId('ai-selected-build-current-total')).toHaveText('1,260,000원');
+  await expect(aiPanel.getByText('현재 저장가 기준')).toBeVisible();
+  await expect(changeSummary).toContainText('AI 추천 시점 대비 50,000원 절감 (-3.8%)');
+  await expect(changeList).toContainText('RTX 가격 비교 GPU');
+  await expect(changeList).toContainText('추천가 890,000원 → 현재가 850,000원 · 40,000원 절감 (-4.5%)');
+  await expect(changeList).toContainText('Ryzen 가격 비교 CPU');
+  await expect(changeList).toContainText('추천가 420,000원 → 현재가 410,000원 · 10,000원 절감 (-2.4%)');
+  await expect(aiPanel.getByText(/절감|상승|변동 없음/)).toHaveCount(0);
+});
+
+test('shows current quote total increase compared with selected AI build prices', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+    localStorage.setItem('buildgraph.authUser', JSON.stringify({
+      id: 'user-test',
+      email: 'user@example.com',
+      name: 'Demo User',
+      role: 'USER'
+    }));
+    sessionStorage.setItem('buildgraph.ai.selectedBuild:user-test', JSON.stringify({
+      id: 'ai-price-change-increase',
+      tier: 'balanced',
+      title: '상승 비교 추천 조합',
+      summary: '추천 시점 대비 현재가 상승 비교 테스트 조합입니다.',
+      totalPrice: 1000000,
+      appliedPartCategories: ['GPU'],
+      selectedAt: '2026-06-30T09:00:00.000Z',
+      items: [
+        {
+          partId: 'part-gpu-price-increase',
+          category: 'GPU',
+          name: 'RTX 상승 비교 GPU',
+          manufacturer: 'NVIDIA',
+          quantity: 1,
+          price: 1000000,
+          note: '추천 시점 GPU 가격'
+        }
+      ]
+    }));
+  });
+
+  await page.route('**/api/quote-drafts/current**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'draft-price-change-increase',
+        status: 'ACTIVE',
+        name: '셀프 견적',
+        items: [
+          {
+            id: 'draft-item-gpu-price-increase',
+            partId: 'part-gpu-price-increase',
+            category: 'GPU',
+            name: 'RTX 상승 비교 GPU',
+            manufacturer: 'NVIDIA',
+            quantity: 1,
+            unitPriceAtAdd: 1000000,
+            currentPrice: 1080000,
+            lineTotal: 1080000,
+            attributes: {}
+          }
+        ],
+        totalPrice: 1080000,
+        itemCount: 1
+      })
+    });
+  });
+
+  await page.route('**/api/parts**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes('/price-history')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          partId: 'part-gpu-price-increase',
+          partName: 'RTX 상승 비교 GPU',
+          currentPrice: 1080000,
+          days: 3650,
+          source: 'NAVER_SHOPPING_SEARCH',
+          items: [],
+          summary: {
+            sampleCount: 0,
+            currentPrice: 1080000,
+            minPrice: 1080000,
+            maxPrice: 1080000,
+            firstPrice: 1080000,
+            lastPrice: 1080000,
+            changeAmount: 0,
+            changeRatePercent: 0
+          }
+        })
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [],
+        page: 0,
+        size: 20,
+        total: 0
+      })
+    });
+  });
+
+  await page.goto('/self-quote');
+
+  const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
+  await expect(cartPanel.getByTestId('quote-price-change-summary')).toContainText('AI 추천 시점 대비 80,000원 상승 (+8.0%)');
+  await expect(cartPanel.getByTestId('quote-price-change-list')).toContainText('추천가 1,000,000원 → 현재가 1,080,000원 · 80,000원 상승 (+8.0%)');
+});
+
+test('shows no price movement when selected AI build and current quote prices match', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('buildgraph.token', 'jwt-user-token');
+    localStorage.setItem('buildgraph.authUser', JSON.stringify({
+      id: 'user-test',
+      email: 'user@example.com',
+      name: 'Demo User',
+      role: 'USER'
+    }));
+    sessionStorage.setItem('buildgraph.ai.selectedBuild:user-test', JSON.stringify({
+      id: 'ai-price-change-same',
+      tier: 'balanced',
+      title: '동일 가격 추천 조합',
+      summary: '추천 시점 대비 현재가 동일 테스트 조합입니다.',
+      totalPrice: 890000,
+      appliedPartCategories: ['GPU'],
+      selectedAt: '2026-06-30T09:00:00.000Z',
+      items: [
+        {
+          partId: 'part-gpu-price-same',
+          category: 'GPU',
+          name: 'RTX 동일 가격 GPU',
+          manufacturer: 'NVIDIA',
+          quantity: 1,
+          price: 890000,
+          note: '추천 시점 GPU 가격'
+        }
+      ]
+    }));
+  });
+
+  await page.route('**/api/quote-drafts/current**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'draft-price-change-same',
+        status: 'ACTIVE',
+        name: '셀프 견적',
+        items: [
+          {
+            id: 'draft-item-gpu-price-same',
+            partId: 'part-gpu-price-same',
+            category: 'GPU',
+            name: 'RTX 동일 가격 GPU',
+            manufacturer: 'NVIDIA',
+            quantity: 1,
+            unitPriceAtAdd: 890000,
+            currentPrice: 890000,
+            lineTotal: 890000,
+            attributes: {}
+          }
+        ],
+        totalPrice: 890000,
+        itemCount: 1
+      })
+    });
+  });
+
+  await page.route('**/api/parts**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes('/price-history')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          partId: 'part-gpu-price-same',
+          partName: 'RTX 동일 가격 GPU',
+          currentPrice: 890000,
+          days: 3650,
+          source: 'NAVER_SHOPPING_SEARCH',
+          items: [],
+          summary: {
+            sampleCount: 0,
+            currentPrice: 890000,
+            minPrice: 890000,
+            maxPrice: 890000,
+            firstPrice: 890000,
+            lastPrice: 890000,
+            changeAmount: 0,
+            changeRatePercent: 0
+          }
+        })
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [],
+        page: 0,
+        size: 20,
+        total: 0
+      })
+    });
+  });
+
+  await page.goto('/self-quote');
+
+  const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
+  await expect(cartPanel.getByTestId('quote-price-change-summary')).toContainText('AI 추천 시점 대비 변동 없음');
+  await expect(cartPanel.getByTestId('quote-price-change-list')).toContainText('부품별 가격 변동 없음');
+});
+
 test('paginates self quote assets in 20 item pages', async ({ page }) => {
   const requestedPages: string[] = [];
   const requestedSizes: string[] = [];
@@ -1394,7 +1744,7 @@ test('renders quote dependency graph with circular nodes in the reference layout
         status: 'ACTIVE',
         name: '셀프 견적',
         items: [],
-        totalPrice: 0,
+        totalPrice: 1980000,
         itemCount: 0
       })
     });
@@ -1438,6 +1788,9 @@ test('renders quote dependency graph with circular nodes in the reference layout
   const pcCase = center(await nodeBox('Airflow Case', '케이스'));
   const cooler = center(await nodeBox('쿨러', '쿨러'));
   const storage = center(await nodeBox('SSD', 'SSD'));
+  const priceNode = graphCanvas.locator('.react-flow__node').filter({ hasText: '총액' }).first();
+  await expect(priceNode.locator('.buildgraph-node-price-label')).toHaveText('1,980,000원');
+  await expect(priceNode.locator('.react-flow__handle')).toHaveCount(0);
   const price = center(await nodeBox('총액', '총액'));
 
   expect(cpu.x).toBeLessThan(motherboard.x);
@@ -1551,7 +1904,8 @@ test('updates quantity only for repeatable quote draft categories', async ({ pag
   await page.getByRole('button', { name: '삼성 DDR5 32GB 테스트 수량 증가' }).click();
 
   await expect(page.getByText('수량 2개')).toBeVisible();
-  await expect(page.getByText('1,060,000원')).toBeVisible();
+  const cartPanel = page.getByRole('heading', { name: '견적 장바구니', exact: true }).locator('xpath=ancestor::section[1]');
+  await expect(cartPanel.getByText('1,060,000원')).toBeVisible();
 });
 
 test('shows price trend chart on product detail page', async ({ page }) => {

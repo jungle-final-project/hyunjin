@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Bell, CheckCircle2, PackageCheck, Search, ShoppingCart, SlidersHorizontal, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { CategorySidebar, DataTable, MetricCard, Panel, Screen } from '../../../components/ui';
+import { CategorySidebar, DataTable, Panel, Screen } from '../../../components/ui';
 import { AUTH_CHANGED_EVENT, getToken } from '../../../lib/api';
 import { AiBuildAssistant } from '../../quote/components/AiBuildAssistant';
 import { BuildDependencyGraph } from '../../quote/components/BuildDependencyGraph';
@@ -77,6 +77,8 @@ export function SelfQuotePage() {
   const toIndex = total === 0 ? 0 : Math.min((safePage + 1) * PAGE_SIZE, total);
   const draftItems = quoteDraft?.items ?? [];
   const selectedTotal = quoteDraft?.totalPrice ?? 0;
+  const quotePriceComparison = compareAiBuildPrices(aiBuild, draftItems);
+  const aiBuildDisplayTotal = currentPriceTotalForAiBuild(aiBuild, draftItems);
   const selectedPartIds = new Set(draftItems.map((part) => part.partId));
   const graphFocus = quoteGraphFocus(category);
   const graphQuery = useQuery({
@@ -235,6 +237,7 @@ export function SelfQuotePage() {
           <AiSelectedBuildPanel
             build={aiBuild}
             selectedPartIds={selectedPartIds}
+            displayTotal={aiBuildDisplayTotal}
             onClear={() => {
               clearSelectedAiBuild();
               setAiBuild(null);
@@ -247,6 +250,7 @@ export function SelfQuotePage() {
           isLoading={graphQuery.isLoading || (hasToken && isQuoteDraftLoading)}
           isRefreshing={graphQuery.isFetching && Boolean(graphQuery.data)}
           isError={graphQuery.isError}
+          totalPrice={selectedTotal}
           title="견적 관계도"
           subtitle="장바구니에 담긴 부품이 서로 어떤 조건으로 연결되는지 확인합니다."
           onCategorySelect={selectCategory}
@@ -327,7 +331,7 @@ export function SelfQuotePage() {
 
           <aside className="min-w-0 xl:sticky xl:top-5 xl:self-start">
             <Panel title="견적 장바구니" subtitle="선택한 부품 총액과 검증 진입점을 확인합니다.">
-              <MetricCard label="견적 합계" value={`${selectedTotal.toLocaleString()}원`} />
+              <QuoteTotalCard totalPrice={selectedTotal} comparison={quotePriceComparison} />
               <div className="mt-4 space-y-2">
                 {!hasToken ? (
                   <div className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">
@@ -394,10 +398,12 @@ export function SelfQuotePage() {
 function AiSelectedBuildPanel({
   build,
   selectedPartIds,
+  displayTotal,
   onClear
 }: {
   build: AiSelectedBuild;
   selectedPartIds: Set<string>;
+  displayTotal: AiBuildDisplayTotal;
   onClear: () => void;
 }) {
   const duplicateCount = build.items.filter((item) => selectedPartIds.has(item.partId)).length;
@@ -425,7 +431,8 @@ function AiSelectedBuildPanel({
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-md bg-white px-4 py-3 text-right">
             <div className="text-xs font-bold text-slate-500">AI 조합 합계</div>
-            <div className="text-lg font-black text-commerce-sale">{build.totalPrice.toLocaleString()}원</div>
+            <div data-testid="ai-selected-build-current-total" className="text-lg font-black text-commerce-sale">{displayTotal.totalPrice.toLocaleString()}원</div>
+            <div className="mt-1 text-[11px] font-bold text-slate-500">{displayTotalLabel(displayTotal)}</div>
           </div>
           <button
             type="button"
@@ -470,6 +477,180 @@ function AiSelectedBuildPanel({
       </div>
     </section>
   );
+}
+
+type QuotePriceChangeDirection = 'down' | 'up' | 'same';
+
+type AiBuildDisplayTotal = {
+  totalPrice: number;
+  matchedItemCount: number;
+  itemCount: number;
+};
+
+function currentPriceTotalForAiBuild(aiBuild: AiSelectedBuild | null, draftItems: QuoteDraftItem[]): AiBuildDisplayTotal {
+  if (!aiBuild) {
+    return { totalPrice: 0, matchedItemCount: 0, itemCount: 0 };
+  }
+  const draftItemsByPartId = new Map(draftItems.map((item) => [item.partId, item]));
+  let matchedItemCount = 0;
+  const totalPrice = aiBuild.items.reduce((sum, item) => {
+    const draftItem = draftItemsByPartId.get(item.partId);
+    if (draftItem) {
+      matchedItemCount += 1;
+      return sum + draftItem.currentPrice * draftItem.quantity;
+    }
+    return sum + item.price * item.quantity;
+  }, 0);
+  return {
+    totalPrice,
+    matchedItemCount,
+    itemCount: aiBuild.items.length
+  };
+}
+
+function displayTotalLabel(total: AiBuildDisplayTotal) {
+  if (total.itemCount > 0 && total.matchedItemCount === total.itemCount) {
+    return '현재 저장가 기준';
+  }
+  if (total.matchedItemCount > 0) {
+    return '현재 저장가 일부 반영';
+  }
+  return '추천 시점 기준';
+}
+
+type QuotePriceChangeRow = {
+  partId: string;
+  categoryLabel: string;
+  name: string;
+  referencePrice: number;
+  currentPrice: number;
+  delta: number;
+  ratePercent: number;
+  direction: QuotePriceChangeDirection;
+};
+
+type QuotePriceComparison = {
+  referenceTotal: number;
+  currentTotal: number;
+  delta: number;
+  ratePercent: number;
+  direction: QuotePriceChangeDirection;
+  rows: QuotePriceChangeRow[];
+  changedRows: QuotePriceChangeRow[];
+};
+
+function QuoteTotalCard({ totalPrice, comparison }: { totalPrice: number; comparison: QuotePriceComparison | null }) {
+  return (
+    <div className="rounded-md border border-commerce-line bg-white p-4 shadow-sm">
+      <div className="text-xs font-bold text-slate-500">견적 합계</div>
+      <div className="mt-2 text-2xl font-black tracking-tight text-brand-blue">{totalPrice.toLocaleString()}원</div>
+      {comparison ? (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          
+
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function compareAiBuildPrices(aiBuild: AiSelectedBuild | null, draftItems: QuoteDraftItem[]): QuotePriceComparison | null {
+  if (!aiBuild || draftItems.length === 0) {
+    return null;
+  }
+  const aiItemsByPartId = new Map(aiBuild.items.map((item) => [item.partId, item]));
+  const rows = draftItems
+    .map((draftItem) => {
+      const aiItem = aiItemsByPartId.get(draftItem.partId);
+      if (!aiItem || aiItem.price <= 0 || draftItem.quantity <= 0) {
+        return null;
+      }
+      const referencePrice = aiItem.price * draftItem.quantity;
+      const currentPrice = draftItem.currentPrice * draftItem.quantity;
+      const delta = currentPrice - referencePrice;
+      return {
+        partId: draftItem.partId,
+        categoryLabel: isPartCategory(draftItem.category) ? PART_CATEGORY_LABELS[draftItem.category] : draftItem.category,
+        name: draftItem.name,
+        referencePrice,
+        currentPrice,
+        delta,
+        ratePercent: (delta / referencePrice) * 100,
+        direction: priceChangeDirection(delta)
+      };
+    })
+    .filter((row): row is QuotePriceChangeRow => row !== null);
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const referenceTotal = rows.reduce((sum, row) => sum + row.referencePrice, 0);
+  const currentTotal = rows.reduce((sum, row) => sum + row.currentPrice, 0);
+  const delta = currentTotal - referenceTotal;
+  const changedRows = rows
+    .filter((row) => row.delta !== 0)
+    .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta));
+
+  return {
+    referenceTotal,
+    currentTotal,
+    delta,
+    ratePercent: referenceTotal === 0 ? 0 : (delta / referenceTotal) * 100,
+    direction: priceChangeDirection(delta),
+    rows,
+    changedRows
+  };
+}
+
+function priceChangeDirection(delta: number): QuotePriceChangeDirection {
+  if (delta < 0) return 'down';
+  if (delta > 0) return 'up';
+  return 'same';
+}
+
+function priceChangeSummaryText(comparison: QuotePriceComparison) {
+  if (comparison.direction === 'same') {
+    return 'AI 추천 시점 대비 변동 없음';
+  }
+  const label = comparison.direction === 'down' ? '절감' : '상승';
+  return `AI 추천 시점 대비 ${Math.abs(comparison.delta).toLocaleString()}원 ${label} (${formatSignedPercent(comparison.ratePercent)})`;
+}
+
+function priceChangeDetailText(row: QuotePriceChangeRow) {
+  if (row.direction === 'same') {
+    return '변동 없음';
+  }
+  const label = row.direction === 'down' ? '절감' : '상승';
+  return `${Math.abs(row.delta).toLocaleString()}원 ${label} (${formatSignedPercent(row.ratePercent)})`;
+}
+
+function formatSignedPercent(value: number) {
+  if (value === 0) {
+    return '0.0%';
+  }
+  const sign = value > 0 ? '+' : '-';
+  return `${sign}${Math.abs(value).toFixed(1)}%`;
+}
+
+function priceChangeSummaryClassName(direction: QuotePriceChangeDirection) {
+  if (direction === 'down') {
+    return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+  }
+  if (direction === 'up') {
+    return 'border-orange-100 bg-orange-50 text-orange-700';
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-500';
+}
+
+function priceChangeRowClassName(direction: QuotePriceChangeDirection) {
+  if (direction === 'down') {
+    return 'font-bold text-emerald-700';
+  }
+  if (direction === 'up') {
+    return 'font-bold text-orange-700';
+  }
+  return 'font-bold text-slate-500';
 }
 
 function PartsTableSkeleton() {

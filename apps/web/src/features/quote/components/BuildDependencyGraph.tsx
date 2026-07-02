@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Background,
@@ -9,6 +9,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type NodeProps,
   type ReactFlowInstance
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -29,6 +30,7 @@ type BuildDependencyGraphProps = {
   isLoading?: boolean;
   isRefreshing?: boolean;
   isError?: boolean;
+  totalPrice?: number;
   title?: string;
   subtitle?: string;
   onCategorySelect?: (category: PartCategory) => void;
@@ -52,6 +54,7 @@ const FLOATING_GRAPH_HEADER_HEIGHT = 42;
 const FLOATING_GRAPH_CANDIDATE_MIN_HEIGHT = 260;
 const FLOATING_GRAPH_CANDIDATE_MAX_HEIGHT = 480;
 const FLOATING_GRAPH_PANEL_GAP = 12;
+const graphNodeTypes = { priceTotal: PriceTotalNode };
 const categoryPositions: Record<string, { x: number; y: number }> = {
   CPU: { x: 20, y: 170 },
   MOTHERBOARD: { x: 300, y: 36 },
@@ -69,6 +72,7 @@ export function BuildDependencyGraph({
   isLoading,
   isRefreshing = false,
   isError,
+  totalPrice,
   title = '견적 관계도',
   subtitle = '선택한 부품이 전력, 규격, 호환성에 주는 영향을 시각화합니다.',
   onCategorySelect,
@@ -80,7 +84,8 @@ export function BuildDependencyGraph({
   const [showFloatingGraph, setShowFloatingGraph] = useState(false);
   const graphCanvasRef = useRef<HTMLDivElement | null>(null);
   const hasSeenGraphRef = useRef(false);
-  const activeNode = graph?.nodes.find((node) => node.id === activeNodeId) ?? null;
+  const displayGraph = useMemo(() => withDisplayTotalPrice(graph, totalPrice), [graph, totalPrice]);
+  const activeNode = displayGraph?.nodes.find((node) => node.id === activeNodeId) ?? null;
   const activeNodeCategory = activeNode && typeof activeNode.category === 'string' && isPartCategory(activeNode.category)
     ? activeNode.category
     : null;
@@ -101,8 +106,8 @@ export function BuildDependencyGraph({
     }),
     enabled: Boolean(candidateContext && activeNodeCategory)
   });
-  const { nodes, edges } = useMemo(() => toFlowElements(graph), [graph]);
-  const canShowFloatingGraph = Boolean(graph && graph.nodes.length > 0 && !isLoading && !isError);
+  const { nodes, edges } = useMemo(() => toFlowElements(displayGraph), [displayGraph]);
+  const canShowFloatingGraph = Boolean(displayGraph && displayGraph.nodes.length > 0 && !isLoading && !isError);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
@@ -145,7 +150,7 @@ export function BuildDependencyGraph({
   };
 
   const handleEdgeClick = (edge: Edge) => {
-    const graphEdge = graph?.edges.find((item) => item.id === edge.id);
+    const graphEdge = displayGraph?.edges.find((item) => item.id === edge.id);
     setActiveNodeId(null);
     setActiveEdge(graphEdge ?? null);
   };
@@ -167,16 +172,16 @@ export function BuildDependencyGraph({
             Dependency graph
           </div>
           <h2 className="mt-1 text-xl font-black text-commerce-ink">{title}</h2>
-          <p className="mt-1 max-w-3xl break-keep text-sm leading-6 text-slate-500">{graph?.summary ?? subtitle}</p>
+          <p className="mt-1 max-w-3xl break-keep text-sm leading-6 text-slate-500">{displayGraph?.summary ?? subtitle}</p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center text-xs sm:min-w-[260px]">
-          <GraphStat label="노드" value={graph?.nodes.length ?? 0} />
-          <GraphStat label="관계" value={graph?.edges.length ?? 0} />
-          <GraphStat label="주의" value={graph?.insights.filter((insight) => insight.status !== 'PASS').length ?? 0} tone="warn" />
+          <GraphStat label="노드" value={displayGraph?.nodes.length ?? 0} />
+          <GraphStat label="관계" value={displayGraph?.edges.length ?? 0} />
+          <GraphStat label="주의" value={displayGraph?.insights.filter((insight) => insight.status !== 'PASS').length ?? 0} tone="warn" />
         </div>
       </div>
 
-      {isLoading && !graph ? (
+      {isLoading && !displayGraph ? (
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid h-[430px] place-items-center border-b border-commerce-line bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] p-6 text-sm font-bold text-slate-500 lg:h-[680px] lg:border-b-0 lg:border-r xl:h-[720px]">
             관계 그래프를 계산하는 중입니다.
@@ -190,11 +195,11 @@ export function BuildDependencyGraph({
             </div>
           </aside>
         </div>
-      ) : isError && !graph ? (
+      ) : isError && !displayGraph ? (
         <div className="m-5 rounded-lg border border-orange-200 bg-orange-50 p-5 text-sm font-bold text-orange-700">
           관계 그래프 API를 불러오지 못했습니다.
         </div>
-      ) : !graph || graph.nodes.length === 0 ? (
+      ) : !displayGraph || displayGraph.nodes.length === 0 ? (
         <div className="m-5 rounded-lg border border-dashed border-blue-200 bg-blue-50/70 p-6 text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-white text-brand-blue shadow-product">
             <GitBranch size={23} />
@@ -215,6 +220,7 @@ export function BuildDependencyGraph({
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
+                nodeTypes={graphNodeTypes}
                 fitView
                 fitViewOptions={{ padding: 0.12 }}
                 minZoom={0.45}
@@ -278,7 +284,7 @@ export function BuildDependencyGraph({
             ) : null}
 
             <div className="space-y-2">
-              {graph.insights.map((insight) => (
+              {displayGraph.insights.map((insight) => (
                 <article
                   key={insight.id}
                   className={`w-full rounded-lg border p-3 text-left ${statusPanelTone(insight.status)}`}
@@ -518,6 +524,7 @@ function FloatingDependencyGraph({
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            nodeTypes={graphNodeTypes}
             fitView
             fitViewOptions={{ padding: 0.18 }}
             minZoom={0.18}
@@ -589,20 +596,28 @@ function clampFloatingGraphSize(
   };
 }
 
+function PriceTotalNode({ data }: NodeProps<Node<{ label: ReactNode }>>) {
+  return <>{data.label}</>;
+}
+
 function toFlowElements(graph?: BuildGraphResolveResponse | null): { nodes: Node[]; edges: Edge[] } {
   if (!graph) return { nodes: [], edges: [] };
   const focusNodeIds = new Set(graph.focusNodeIds);
   const nodes = graph.nodes.map((node, index) => {
     const category = String(node.category ?? node.id).toUpperCase();
+    const isPriceNode = isPriceGraphNode(node);
     const basePosition = categoryPositions[category] ?? {
       x: 20 + (index % 3) * 300,
       y: 80 + Math.floor(index / 3) * 210
     };
     return {
       id: node.id,
+      type: isPriceNode ? 'priceTotal' : undefined,
       position: basePosition,
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
+      ...(isPriceNode ? {} : {
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left
+      }),
       data: {
         label: nodeLabel(node),
         category: node.category,
@@ -649,14 +664,39 @@ function toFlowElements(graph?: BuildGraphResolveResponse | null): { nodes: Node
   return { nodes, edges };
 }
 
+function withDisplayTotalPrice(
+  graph: BuildGraphResolveResponse | null | undefined,
+  totalPrice?: number
+) {
+  if (!graph || typeof totalPrice !== 'number') return graph;
+  let changed = false;
+  const nodes = graph.nodes.map((node) => {
+    if (!isPriceGraphNode(node) || typeof node.price === 'number') return node;
+    changed = true;
+    return { ...node, price: totalPrice };
+  });
+  return changed ? { ...graph, nodes } : graph;
+}
+
 function nodeLabel(node: BuildGraphResolveResponse['nodes'][number]) {
+  const priceLabel = nodePriceLabel(node);
   return (
     <div className="buildgraph-node-card buildgraph-node-circle">
       <div className="buildgraph-node-category-label">{nodeCategoryLabel(node)}</div>
       <div className="buildgraph-node-main-label">{node.label}</div>
+      {priceLabel ? <div className="buildgraph-node-price-label">{priceLabel}</div> : null}
       <div className={`buildgraph-node-status-label ${statusBadgeTone(node.status)}`}>{statusLabel(node.status)}</div>
     </div>
   );
+}
+
+function nodePriceLabel(node: BuildGraphResolveResponse['nodes'][number]) {
+  if (!isPriceGraphNode(node) || typeof node.price !== 'number') return null;
+  return `${node.price.toLocaleString()}원`;
+}
+
+function isPriceGraphNode(node: Pick<BuildGraphNode, 'category' | 'type' | 'id'>) {
+  return String(node.category ?? node.id).toUpperCase() === 'PRICE';
 }
 
 function nodeCategoryLabel(node: BuildGraphResolveResponse['nodes'][number]) {
@@ -705,6 +745,7 @@ function nodeStyle(node: BuildGraphResolveResponse['nodes'][number]) {
 function nodeDiameter(node: BuildGraphResolveResponse['nodes'][number]) {
   const category = String(node.category ?? node.id).toUpperCase();
   if (category === 'MOTHERBOARD') return 136;
+  if (category === 'PRICE') return 126;
   if (category === 'CASE') return 124;
   if (String(node.label).length >= 8) return 118;
   return DEFAULT_NODE_DIAMETER;

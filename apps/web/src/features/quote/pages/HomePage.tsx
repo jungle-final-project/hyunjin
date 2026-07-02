@@ -393,6 +393,7 @@ export function HomePage() {
                       graph={graphQuery.data}
                       isLoading={graphQuery.isLoading}
                       isError={graphQuery.isError}
+                      totalPrice={activeAiBuild?.totalPrice}
                       title="견적 관계도"
                       subtitle="최신 AI 추천 조합에서 영향을 받는 부품과 제약을 먼저 보여줍니다."
                       candidateContext={activeAiBuild ? {
