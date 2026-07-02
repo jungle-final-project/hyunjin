@@ -70,6 +70,20 @@ export type AgentSessionDetail = {
   llmGenerations?: LlmGeneration[];
 };
 
+export type AgentSessionSummary = {
+  id: string;
+  status: string;
+  userId?: string;
+  createdAt?: string;
+};
+
+export type AgentSessionsResponse = {
+  items: AgentSessionSummary[];
+  page?: number;
+  size?: number;
+  total?: number;
+};
+
 export type RagEvidenceDetail = {
   id: string;
   agentSessionId?: string;
@@ -122,6 +136,10 @@ export function getAdminDashboard() {
 
 export function getRecentAdminAuditLogs() {
   return api<AdminAuditLogsResponse>('/api/admin/audit-logs/recent');
+}
+
+export function getAdminAgentSessions() {
+  return api<AgentSessionsResponse>('/api/admin/agent-sessions');
 }
 
 export function getAgentSession(sessionId: string) {

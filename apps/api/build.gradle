@@ -31,6 +31,44 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
+def asciiTestClasspathRoot = providers.provider {
+    def safeProjectKey = projectDir.absolutePath.replaceAll('[^A-Za-z0-9._-]', '_')
+    new File(System.getProperty('java.io.tmpdir'), "buildgraph-api-test-classpath/${safeProjectKey}")
+}
+
+tasks.register('syncAsciiTestClasspath', Sync) {
+    dependsOn tasks.named('testClasses')
+    into(asciiTestClasspathRoot)
+    into('test-classes') {
+        from sourceSets.test.output.classesDirs
+    }
+    into('test-resources') {
+        from sourceSets.test.output.resourcesDir
+    }
+    into('main-classes') {
+        from sourceSets.main.output.classesDirs
+    }
+    into('main-resources') {
+        from sourceSets.main.output.resourcesDir
+    }
+}
+
 tasks.named('test') {
+    dependsOn tasks.named('syncAsciiTestClasspath')
     useJUnitPlatform()
+    doFirst {
+        def root = asciiTestClasspathRoot.get()
+        def projectOutput = files(
+                sourceSets.test.output.classesDirs,
+                sourceSets.test.output.resourcesDir,
+                sourceSets.main.output.classesDirs,
+                sourceSets.main.output.resourcesDir
+        )
+        classpath = files(
+                new File(root, 'test-classes'),
+                new File(root, 'test-resources'),
+                new File(root, 'main-classes'),
+                new File(root, 'main-resources')
+        ) + (classpath - projectOutput)
+    }
 }
